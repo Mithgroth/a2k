@@ -29,10 +29,10 @@ public class Program
 
         // Define the root command
         var rootCommand = new RootCommand
-    {
-        appHostOption,
-        namespaceOption
-    };
+        {
+            appHostOption,
+            namespaceOption
+        };
 
         rootCommand.Description = "a2k CLI: Deploy Aspire projects to Kubernetes";
 
