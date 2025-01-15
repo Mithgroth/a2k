@@ -1,0 +1,15 @@
+{
+  "resources": {
+    "api": {
+      "type": "project.v0",
+      "path": "../../src/myproject/MyProject.csproj"
+    },
+    "postgres": {
+      "type": "container.v1",
+      "build": {
+        "context": "data",
+        "dockerfile": "data/Dockerfile"
+      }
+    }
+  }
+}
