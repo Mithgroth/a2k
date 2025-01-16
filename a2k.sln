@@ -29,7 +29,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Folder", "Solution
 		Directory.Build.props = Directory.Build.props
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared", "src\Shared\Shared.csproj", "{6DD9EF5A-50EE-48A4-85E1-ECCDAD21FF13}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "a2k.Shared", "src\Shared\a2k.Shared.csproj", "{6DD9EF5A-50EE-48A4-85E1-ECCDAD21FF13}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

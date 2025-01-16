@@ -1,4 +1,4 @@
-﻿namespace Shared.Models;
+﻿namespace a2k.Shared.Models;
 
 public class AspireProject
 {

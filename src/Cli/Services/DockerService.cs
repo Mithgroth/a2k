@@ -1,4 +1,4 @@
-﻿using a2k.Cli.Models;
+﻿using a2k.Shared.Models;
 
 namespace a2k.Cli.Services;
 

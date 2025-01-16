@@ -1,5 +1,5 @@
-﻿using a2k.Cli.Models;
-using a2k.Cli.Services;
+﻿using a2k.Cli.Services;
+using a2k.Shared.Models;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;

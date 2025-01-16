@@ -1,4 +1,6 @@
-﻿namespace Shared.Models;
+﻿using a2k.Shared.Models;
+
+namespace Shared.Models;
 
 public class AspireSolution
 {

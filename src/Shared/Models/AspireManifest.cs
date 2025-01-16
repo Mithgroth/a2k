@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace Shared.Models;
+namespace a2k.Shared.Models;
 
 /// <summary>
 /// Represents manifest.json output of dotnet run --publisher manifest --output-path manifest.json command on AppHost project
