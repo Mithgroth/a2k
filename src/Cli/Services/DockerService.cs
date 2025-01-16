@@ -4,9 +4,9 @@ namespace a2k.Cli.Services;
 
 public static class DockerService
 {
-    public static List<(string Name, string Context, string Dockerfile, bool IsProject)> FindImagesToBuild(AspireManifest manifest, string appHostPath)
+    public static List<(string ResourceName, string Context, string Dockerfile, bool IsProject, string ImageName)> FindImagesToBuild(AspireManifest manifest, string appHostPath)
     {
-        var imagesToBuild = new List<(string Name, string Context, string Dockerfile, bool IsProject)>();
+        var imagesToBuild = new List<(string ResourceName, string Context, string Dockerfile, bool IsProject, string ImageName)>();
 
         foreach (var (resourceName, resource) in manifest.Resources)
         {
@@ -15,19 +15,17 @@ public static class DockerService
                 // Resources with a `build` section
                 var context = Path.Combine(appHostPath, resource.Build.Context) ?? ".";
                 var dockerfile = Path.Combine(appHostPath, resource.Build.Dockerfile.Replace("/", "\\") ?? "Dockerfile");
-                imagesToBuild.Add((resourceName, context, dockerfile, false));
+                imagesToBuild.Add((resourceName, context, dockerfile, false, $"{resourceName}:latest"));
             }
             else if (resource.ResourceType.Equals("project.v0", StringComparison.OrdinalIgnoreCase))
             {
                 var projectPath = Path.GetFullPath(Path.Combine(appHostPath, resource.Path));
-
-                // Resources of type `project.v0`
-                //var projectPath = resource.Path ?? throw new Exception($"Resource {resourceName} is missing the path to its project file.");
                 var context = Path.GetDirectoryName(projectPath) ?? ".";
-
-                // No Dockerfile specified; we'll generate one dynamically later if needed
                 var dockerfile = Path.Combine(appHostPath, context, "Dockerfile");
-                imagesToBuild.Add((resourceName, context, dockerfile, true));
+                var solutionName = Path.GetFileName(Directory.GetParent(appHostPath)?.FullName ?? "aspire-app")
+                    .Replace(".sln", string.Empty);
+                var imageName = $"{solutionName.ToLower()}-{resourceName}:latest";
+                imagesToBuild.Add((resourceName, context, dockerfile, true, imageName));
             }
         }
 

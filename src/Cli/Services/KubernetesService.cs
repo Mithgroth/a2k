@@ -7,10 +7,10 @@ namespace a2k.Cli.Services;
 public class KubernetesService
 {
     private readonly Kubernetes _client;
+    private Dictionary<string, string> _resourceToImageMap;
 
     public KubernetesService()
     {
-        // By default, uses ~/.kube/config
         var config = KubernetesClientConfiguration.BuildConfigFromConfigFile();
         _client = new Kubernetes(config);
     }
@@ -19,19 +19,44 @@ public class KubernetesService
     /// Deploy the resources found in the Aspire manifest. 
     /// In a real scenario, you’d create or update Deployments, Services, Secrets, etc.
     /// </summary>
-    public async Task DeployManifestAsync(AspireManifest manifest, string k8sNamespace = "default")
+    public async Task DeployManifestAsync(AspireManifest manifest, string k8sNamespace = "default", string applicationName = "aspire-app", Dictionary<string, string> resourceToImageMap = null)
     {
-        // For each resource in the manifest, handle according to its type
+        _resourceToImageMap = resourceToImageMap ?? [];
+        var commonLabels = new Dictionary<string, string>
+        {
+            { "app.kubernetes.io/name", applicationName },
+            { "app.kubernetes.io/managed-by", "a2k" }
+        };
+
+        try 
+        {
+            await _client.CoreV1.ReadNamespaceAsync(k8sNamespace);
+        }
+        catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            var namespaceObj = new V1Namespace
+            {
+                Metadata = new V1ObjectMeta
+                {
+                    Name = k8sNamespace,
+                    Labels = commonLabels
+                }
+            };
+            
+            await _client.CoreV1.CreateNamespaceAsync(namespaceObj);
+            Console.WriteLine($"[INFO] Created namespace {k8sNamespace}");
+        }
+
         foreach (var (resourceName, resource) in manifest.Resources)
         {
             var resourceType = resource.ResourceType ?? string.Empty;
             if (resourceType.Contains("container", StringComparison.OrdinalIgnoreCase))
             {
-                await DeployContainerResource(resourceName, resource, k8sNamespace);
+                await DeployContainerResource(resourceName, resource, k8sNamespace, applicationName);
             }
             else if (resourceType.Contains("project", StringComparison.OrdinalIgnoreCase))
             {
-                await DeployProjectResource(resourceName, resource, k8sNamespace);
+                await DeployProjectResource(resourceName, resource, k8sNamespace, applicationName);
             }
             else if (resourceType.Contains("parameter", StringComparison.OrdinalIgnoreCase))
             {
@@ -45,21 +70,24 @@ public class KubernetesService
         }
     }
 
-    private async Task DeployContainerResource(string name, AspireResource resource, string k8sNamespace)
+    private async Task DeployContainerResource(string name, AspireResource resource, string k8sNamespace, string applicationName)
     {
         Console.WriteLine($"[INFO] Deploying container resource: {name}");
 
-        // Example: Create Deployment + Service
+        var imageName = _resourceToImageMap.TryGetValue(name, out var image) ? image : $"{name}:latest";
+        
         var deployment = CreateBasicDeployment(
             name,
             resource.Env,
             resource.Bindings,
-            image: "nginx:latest" // Or some logic to retrieve from `resource.build` info
+            imageName,
+            applicationName
         );
 
         var service = CreateBasicService(
             name,
-            resource.Bindings
+            resource.Bindings,
+            applicationName
         );
 
         // Create or replace (for brevity, we’ll just create)
@@ -82,24 +110,24 @@ public class KubernetesService
         }
     }
 
-    private async Task DeployProjectResource(string name, AspireResource resource, string k8sNamespace)
+    private async Task DeployProjectResource(string name, AspireResource resource, string k8sNamespace, string applicationName)
     {
         Console.WriteLine($"[INFO] Deploying project resource: {name}");
 
-        // Possibly build an image from the project, or retrieve an image name from CI, etc.
-        // For demonstration, we’ll just assume we have a final container image like "myregistry.com/{name}:latest"
-        var imageName = $"{name}:latest";
+        var imageName = _resourceToImageMap.TryGetValue(name, out var image) ? image : $"{name}:latest";
 
         var deployment = CreateBasicDeployment(
             name,
             resource.Env,
             resource.Bindings,
-            imageName
+            imageName,
+            applicationName
         );
 
         var service = CreateBasicService(
             name,
-            resource.Bindings
+            resource.Bindings,
+            applicationName
         );
 
         // Create or replace
@@ -170,7 +198,8 @@ public class KubernetesService
         string name,
         Dictionary<string, string> envVars,
         Dictionary<string, ResourceBinding> bindings,
-        string image)
+        string image,
+        string applicationName)
     {
         // Figure out a port from the "bindings" if present
         // For a simple example, pick the first binding that has a targetPort.
@@ -197,6 +226,14 @@ public class KubernetesService
             }
         }
 
+        var labels = new Dictionary<string, string>
+        {
+            { "app", name },
+            { "app.kubernetes.io/name", applicationName },
+            { "app.kubernetes.io/managed-by", "a2k" },
+            { "app.kubernetes.io/component", name }
+        };
+
         // Build the K8s Deployment
         return new V1Deployment
         {
@@ -204,26 +241,21 @@ public class KubernetesService
             Kind = "Deployment",
             Metadata = new V1ObjectMeta
             {
-                Name = name
+                Name = name,
+                Labels = labels
             },
             Spec = new V1DeploymentSpec
             {
                 Replicas = 1,
                 Selector = new V1LabelSelector
                 {
-                    MatchLabels = new Dictionary<string, string>
-                    {
-                        { "app", name }
-                    }
+                    MatchLabels = labels
                 },
                 Template = new V1PodTemplateSpec
                 {
                     Metadata = new V1ObjectMeta
                     {
-                        Labels = new Dictionary<string, string>
-                        {
-                            { "app", name }
-                        }
+                        Labels = labels
                     },
                     Spec = new V1PodSpec
                     {
@@ -246,7 +278,10 @@ public class KubernetesService
         };
     }
 
-    private V1Service CreateBasicService(string name, Dictionary<string, ResourceBinding> bindings)
+    private V1Service CreateBasicService(
+        string name,
+        Dictionary<string, ResourceBinding> bindings,
+        string applicationName)
     {
         // Identify at least one port to expose
         var port = 80; // default
@@ -262,20 +297,26 @@ public class KubernetesService
             }
         }
 
+        var labels = new Dictionary<string, string>
+        {
+            { "app", name },
+            { "app.kubernetes.io/name", applicationName },
+            { "app.kubernetes.io/managed-by", "a2k" },
+            { "app.kubernetes.io/component", name }
+        };
+
         return new V1Service
         {
             ApiVersion = "v1",
             Kind = "Service",
             Metadata = new V1ObjectMeta
             {
-                Name = $"{name}-service"
+                Name = $"{name}-service",
+                Labels = labels
             },
             Spec = new V1ServiceSpec
             {
-                Selector = new Dictionary<string, string>
-                {
-                    { "app", name }
-                },
+                Selector = labels,
                 Ports =
                 [
                     new()

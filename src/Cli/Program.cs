@@ -46,6 +46,8 @@ public class Program
     private static async Task RunDeploymentAsync(string appHost, string @namespace)
     {
         var manifestPath = Path.Combine(appHost, "manifest.json");
+        var solutionName = Path.GetFileName(Directory.GetParent(appHost)?.FullName ?? "aspire-app")
+            .Replace(".sln", string.Empty);
 
         if (!File.Exists(manifestPath))
         {
@@ -76,16 +78,16 @@ public class Program
             ShellService.RunCommand("login", "docker");
 
             var imagesToBuild = DockerService.FindImagesToBuild(manifest, appHost);
-            foreach (var (name, context, dockerfile, isProject) in imagesToBuild)
-            {
-                var imageName = $"{name}:latest";
+            var resourceToImageMap = new Dictionary<string, string>();
 
+            foreach (var (name, context, dockerfile, isProject, imageName) in imagesToBuild)
+            {
                 if (isProject)
                 {
                     Console.WriteLine($"[INFO] Building .NET project {name}...");
-                    var publishCommand = $"publish {context} -c Release --verbosity quiet --os linux /t:PublishContainer";
+                    var publishCommand = $"publish {context} -c Release --verbosity quiet --os linux /t:PublishContainer /p:ContainerImageName={imageName.Replace(":latest", "")}";
                     ShellService.RunCommand(publishCommand, "dotnet");
-                    Console.WriteLine($"[INFO] Published Docker image for {name}...");
+                    Console.WriteLine($"[INFO] Published Docker image for {name} as {imageName}");
                 }
                 else
                 {
@@ -93,11 +95,12 @@ public class Program
                     var buildCommand = $"build -t {imageName} -f {dockerfile} {context}";
                     ShellService.RunCommand(buildCommand, "docker");
                 }
+                resourceToImageMap[name] = imageName;
             }
 
             Console.WriteLine("[INFO] Deploying resources to Kubernetes...");
             var k8sService = new KubernetesService();
-            await k8sService.DeployManifestAsync(manifest, @namespace);
+            await k8sService.DeployManifestAsync(manifest, @namespace, solutionName, resourceToImageMap);
 
             Console.WriteLine("[INFO] Deployment completed!");
         }
