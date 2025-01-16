@@ -29,6 +29,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Folder", "Solution
 		Directory.Build.props = Directory.Build.props
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared", "src\Shared\Shared.csproj", "{6DD9EF5A-50EE-48A4-85E1-ECCDAD21FF13}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,6 +65,10 @@ Global
 		{0FE69463-0B8C-4487-913A-D9E9DF828876}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0FE69463-0B8C-4487-913A-D9E9DF828876}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0FE69463-0B8C-4487-913A-D9E9DF828876}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6DD9EF5A-50EE-48A4-85E1-ECCDAD21FF13}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6DD9EF5A-50EE-48A4-85E1-ECCDAD21FF13}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6DD9EF5A-50EE-48A4-85E1-ECCDAD21FF13}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6DD9EF5A-50EE-48A4-85E1-ECCDAD21FF13}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -76,5 +82,6 @@ Global
 		{7B3D41B9-99ED-4763-ACE6-3D7C4C63C188} = {4D323CB0-161F-4BE4-9CA5-EFC577824944}
 		{83BE4E70-45E8-49B5-AD3D-10DFCC599FAC} = {4D323CB0-161F-4BE4-9CA5-EFC577824944}
 		{0FE69463-0B8C-4487-913A-D9E9DF828876} = {4D323CB0-161F-4BE4-9CA5-EFC577824944}
+		{6DD9EF5A-50EE-48A4-85E1-ECCDAD21FF13} = {EE55A5A2-157B-4C5B-9FB9-D63F23DECBF4}
 	EndGlobalSection
 EndGlobal
