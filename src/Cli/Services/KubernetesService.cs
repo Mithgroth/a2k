@@ -25,16 +25,15 @@ public class KubernetesService
         foreach (var (resourceName, resource) in manifest.Resources)
         {
             var resourceType = resource.ResourceType ?? string.Empty;
-
-            if (resourceType.Equals("container.v1", StringComparison.OrdinalIgnoreCase))
+            if (resourceType.Contains("container", StringComparison.OrdinalIgnoreCase))
             {
                 await DeployContainerResource(resourceName, resource, k8sNamespace);
             }
-            else if (resourceType.Equals("project.v0", StringComparison.OrdinalIgnoreCase))
+            else if (resourceType.Contains("project", StringComparison.OrdinalIgnoreCase))
             {
                 await DeployProjectResource(resourceName, resource, k8sNamespace);
             }
-            else if (resourceType.Equals("parameter.v0", StringComparison.OrdinalIgnoreCase))
+            else if (resourceType.Contains("parameter", StringComparison.OrdinalIgnoreCase))
             {
                 // Example: create a Secret for the parameter if secret = true
                 await HandleParameterResource(resourceName, resource, k8sNamespace);
