@@ -2,13 +2,13 @@
 
 namespace a2k.Shared.Models;
 
-public class AspireResource
+public record AspireResource
 {
     [JsonPropertyName("type")]
     public string ResourceType { get; set; }
 
-    //[JsonPropertyName("connectionString")]
-    //public string ConnectionString { get; set; }
+    [JsonPropertyName("connectionString")]
+    public string ConnectionString { get; set; }
 
     [JsonPropertyName("value")]
     public string Value { get; set; }
@@ -29,7 +29,7 @@ public class AspireResource
     public string Path { get; set; }
 }
 
-public class ResourceBinding
+public record ResourceBinding
 {
     [JsonPropertyName("scheme")]
     public string Scheme { get; set; }
@@ -47,7 +47,7 @@ public class ResourceBinding
     public int? TargetPort { get; set; }
 }
 
-public class ResourceBuild
+public record ResourceBuild
 {
     [JsonPropertyName("context")]
     public string Context { get; set; }
@@ -56,7 +56,7 @@ public class ResourceBuild
     public string Dockerfile { get; set; }
 }
 
-public class ResourceInput
+public record ResourceInput
 {
     [JsonPropertyName("type")]
     public string Type { get; set; }
@@ -68,13 +68,13 @@ public class ResourceInput
     public DefaultValue Default { get; set; }
 }
 
-public class DefaultValue
+public record DefaultValue
 {
     [JsonPropertyName("generate")]
     public GenerateInfo Generate { get; set; }
 }
 
-public class GenerateInfo
+public record GenerateInfo
 {
     [JsonPropertyName("minLength")]
     public int MinLength { get; set; }
