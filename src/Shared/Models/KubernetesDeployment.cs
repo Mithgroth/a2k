@@ -57,10 +57,15 @@ public class KubernetesDeployment
     {
         await CheckNamespace();
 
+<<<<<<<< HEAD:src/Shared/Models/KubernetesDeployment.cs
         foreach (var resource in aspireSolution.Resources)
+========
+        try
+>>>>>>>> 20efb2742eab0f4fad651263a70d79deb1011054:src/Cli/KubernetesService.cs
         {
             switch (resource)
             {
+<<<<<<<< HEAD:src/Shared/Models/KubernetesDeployment.cs
                 case AspireContainer container when resource.Type == AspireResourceType.Container:
                     await DeployContainerResource(aspireSolution, container);
                     break;
@@ -77,16 +82,36 @@ public class KubernetesDeployment
                     Console.WriteLine($"[WARN] Resource '{resource.Name}' has unsupported type '{resource.Type}'. Skipping.");
                     break;
             }
+========
+                Metadata = new V1ObjectMeta
+                {
+                    Name = k8sNamespace,
+                    Labels = commonLabels
+                }
+            };
+
+            await _client.CoreV1.CreateNamespaceAsync(namespaceObj);
+            Console.WriteLine($"[INFO] Created namespace {k8sNamespace}");
+>>>>>>>> 20efb2742eab0f4fad651263a70d79deb1011054:src/Cli/KubernetesService.cs
         }
 
     }
 
+<<<<<<<< HEAD:src/Shared/Models/KubernetesDeployment.cs
     private async Task DeployContainerResource(AspireSolution aspireSolution, AspireContainer resource)
+========
+    private async Task DeployContainerResource(string name, ManifestResource resource, string k8sNamespace, string applicationName)
+>>>>>>>> 20efb2742eab0f4fad651263a70d79deb1011054:src/Cli/KubernetesService.cs
     {
         AnsiConsole.MarkupLine($"[bold gray]Deploying container resource: {resource.Name}[/]");
 
         var imageName = $"{resource.Name}:latest";
 
+<<<<<<<< HEAD:src/Shared/Models/KubernetesDeployment.cs
+========
+        var imageName = _resourceToImageMap.TryGetValue(name, out var image) ? image : $"{name}:latest";
+
+>>>>>>>> 20efb2742eab0f4fad651263a70d79deb1011054:src/Cli/KubernetesService.cs
         var deployment = CreateBasicDeployment(
             resource.Name,
             resource.Env,

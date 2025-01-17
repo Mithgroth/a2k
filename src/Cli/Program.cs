@@ -1,7 +1,6 @@
 ﻿using a2k.Cli.CommandLine;
 using a2k.Cli.ManifestParsing;
 using a2k.Shared.Models;
-using Spectre.Console;
 using System.CommandLine;
 
 namespace a2k.Cli;
