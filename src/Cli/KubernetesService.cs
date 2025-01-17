@@ -2,7 +2,7 @@
 using k8s;
 using k8s.Models;
 
-namespace a2k.Cli.Deployment;
+namespace a2k.Cli.Services;
 
 public class KubernetesService
 {
