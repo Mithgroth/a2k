@@ -1,120 +1,131 @@
-﻿using a2k.Shared.Models;
-using k8s;
+﻿using k8s;
 using k8s.Models;
+using Spectre.Console;
 
-namespace a2k.Cli.Services;
+namespace a2k.Shared.Models;
 
-public class KubernetesService
+public class KubernetesDeployment
 {
-    private readonly Kubernetes _client;
-    private Dictionary<string, string> _resourceToImageMap;
+    private readonly Kubernetes k8s = new(KubernetesClientConfiguration.BuildConfigFromConfigFile());
 
-    public KubernetesService()
+    public string Namespace { get; set; }
+    public Dictionary<string, string> CommonLabels { get; set; }
+
+    public KubernetesDeployment(AspireSolution aspireSolution)
     {
-        var config = KubernetesClientConfiguration.BuildConfigFromConfigFile();
-        _client = new Kubernetes(config);
+        Namespace = aspireSolution.Namespace;
+        CommonLabels = new Dictionary<string, string>
+        {
+            { "app.kubernetes.io/name", aspireSolution.Name },
+            { "app.kubernetes.io/managed-by", "a2k" }
+        };
+    }
+
+    public async Task<ResourceOperationResult> CheckNamespace(bool shouldCreateIfNotExists = true)
+    {
+        try
+        {
+            await k8s.ReadNamespaceAsync(Namespace);
+            return ResourceOperationResult.Exists;
+        }
+        catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            if (!shouldCreateIfNotExists)
+            {
+                return ResourceOperationResult.Missing;
+            }
+
+            var namespaceObj = new V1Namespace
+            {
+                Metadata = new V1ObjectMeta
+                {
+                    Name = Namespace,
+                    Labels = CommonLabels,
+                }
+            };
+
+            await k8s.CreateNamespaceAsync(namespaceObj);
+            return ResourceOperationResult.Created;
+        }
     }
 
     /// <summary>
     /// Deploy the resources found in the Aspire manifest. 
     /// In a real scenario, you’d create or update Deployments, Services, Secrets, etc.
     /// </summary>
-    public async Task DeployManifestAsync(AspireManifest manifest, string k8sNamespace = "default", string applicationName = "aspire-app", Dictionary<string, string> resourceToImageMap = null)
+    public async Task Deploy(AspireSolution aspireSolution, string k8sNamespace = "default")
     {
-        _resourceToImageMap = resourceToImageMap ?? [];
-        var commonLabels = new Dictionary<string, string>
-        {
-            { "app.kubernetes.io/name", applicationName },
-            { "app.kubernetes.io/managed-by", "a2k" }
-        };
+        await CheckNamespace();
 
-        try 
+        foreach (var resource in aspireSolution.Resources)
         {
-            await _client.CoreV1.ReadNamespaceAsync(k8sNamespace);
-        }
-        catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
-            var namespaceObj = new V1Namespace
+            switch (resource)
             {
-                Metadata = new V1ObjectMeta
-                {
-                    Name = k8sNamespace,
-                    Labels = commonLabels
-                }
-            };
-            
-            await _client.CoreV1.CreateNamespaceAsync(namespaceObj);
-            Console.WriteLine($"[INFO] Created namespace {k8sNamespace}");
+                case AspireContainer container when resource.Type == AspireResourceType.Container:
+                    await DeployContainerResource(aspireSolution, container);
+                    break;
+
+                case AspireProject project when resource.Type == AspireResourceType.Project:
+                    //await DeployProjectResource(resource.Name, resource, k8sNamespace, aspireSolution.Name);
+                    break;
+
+                case var parameter when resource.Type == AspireResourceType.Parameter:
+                    //await HandleParameterResource(resource.Name, resource, k8sNamespace);
+                    break;
+
+                default:
+                    Console.WriteLine($"[WARN] Resource '{resource.Name}' has unsupported type '{resource.Type}'. Skipping.");
+                    break;
+            }
         }
 
-        foreach (var (resourceName, resource) in manifest.Resources)
-        {
-            var resourceType = resource.ResourceType ?? string.Empty;
-            if (resourceType.Contains("container", StringComparison.OrdinalIgnoreCase))
-            {
-                await DeployContainerResource(resourceName, resource, k8sNamespace, applicationName);
-            }
-            else if (resourceType.Contains("project", StringComparison.OrdinalIgnoreCase))
-            {
-                await DeployProjectResource(resourceName, resource, k8sNamespace, applicationName);
-            }
-            else if (resourceType.Contains("parameter", StringComparison.OrdinalIgnoreCase))
-            {
-                // Example: create a Secret for the parameter if secret = true
-                await HandleParameterResource(resourceName, resource, k8sNamespace);
-            }
-            else
-            {
-                Console.WriteLine($"[WARN] Resource '{resourceName}' has unsupported type '{resourceType}'. Skipping.");
-            }
-        }
     }
 
-    private async Task DeployContainerResource(string name, AspireResource resource, string k8sNamespace, string applicationName)
+    private async Task DeployContainerResource(AspireSolution aspireSolution, AspireContainer resource)
     {
-        Console.WriteLine($"[INFO] Deploying container resource: {name}");
+        AnsiConsole.MarkupLine($"[bold gray]Deploying container resource: {resource.Name}[/]");
 
-        var imageName = _resourceToImageMap.TryGetValue(name, out var image) ? image : $"{name}:latest";
-        
+        var imageName = $"{resource.Name}:latest";
+
         var deployment = CreateBasicDeployment(
-            name,
+            resource.Name,
             resource.Env,
             resource.Bindings,
             imageName,
-            applicationName
+            aspireSolution.Name
         );
 
         var service = CreateBasicService(
-            name,
+            resource.Name,
             resource.Bindings,
-            applicationName
+            aspireSolution.Name
         );
 
         // Create or replace (for brevity, we’ll just create)
         try
         {
-            await _client.CreateNamespacedDeploymentAsync(deployment, k8sNamespace);
+            await k8s.CreateNamespacedDeploymentAsync(deployment, aspireSolution.Namespace);
         }
         catch
         {
-            Console.WriteLine($"[WARN] Deployment {name} already exists or creation failed. You may want to implement patch/replace logic.");
+            AnsiConsole.MarkupLine($"[bold yellow]Deployment {aspireSolution.Name} already exists or creation failed. You may want to implement patch/replace logic.[/]");
         }
 
         try
         {
-            await _client.CreateNamespacedServiceAsync(service, k8sNamespace);
+            await k8s.CreateNamespacedServiceAsync(service, aspireSolution.Namespace);
         }
         catch
         {
-            Console.WriteLine($"[WARN] Service {name} already exists or creation failed. You may want to implement patch/replace logic.");
+            AnsiConsole.MarkupLine($"[bold yellow]Service {aspireSolution.Name} already exists or creation failed. You may want to implement patch/replace logic.[/]");
         }
     }
 
-    private async Task DeployProjectResource(string name, AspireResource resource, string k8sNamespace, string applicationName)
+    private async Task DeployProjectResource(string name, ManifestResource resource, string k8sNamespace, string applicationName)
     {
-        Console.WriteLine($"[INFO] Deploying project resource: {name}");
+        AnsiConsole.MarkupLine($"[bold gray]Deploying project resource: {name}[/]");
 
-        var imageName = _resourceToImageMap.TryGetValue(name, out var image) ? image : $"{name}:latest";
+        var imageName = $"{name}:latest";
 
         var deployment = CreateBasicDeployment(
             name,
@@ -133,26 +144,26 @@ public class KubernetesService
         // Create or replace
         try
         {
-            await _client.CreateNamespacedDeploymentAsync(deployment, k8sNamespace);
+            await k8s.CreateNamespacedDeploymentAsync(deployment, k8sNamespace);
         }
         catch
         {
-            Console.WriteLine($"[WARN] Deployment {name} already exists or creation failed.");
+            AnsiConsole.MarkupLine($"[bold yellow]Deployment {name} already exists or creation failed.[/]");
         }
 
         try
         {
-            await _client.CreateNamespacedServiceAsync(service, k8sNamespace);
+            await k8s.CreateNamespacedServiceAsync(service, k8sNamespace);
         }
         catch
         {
-            Console.WriteLine($"[WARN] Service {name} already exists or creation failed.");
+            AnsiConsole.MarkupLine($"[bold yellow]Service {name} already exists or creation failed.[/]");
         }
     }
 
-    private async Task HandleParameterResource(string name, AspireResource resource, string k8sNamespace)
+    private async Task HandleParameterResource(string name, ManifestResource resource, string k8sNamespace)
     {
-        Console.WriteLine($"[INFO] Handling parameter resource: {name}");
+        AnsiConsole.MarkupLine($"[bold gray]Handling parameter resource: {name}[/]");
 
         // If the parameter is secret (e.g., password), create a Secret
         if (resource.Inputs != null && resource.Inputs.TryGetValue("value", out var paramInput) && paramInput.Secret)
@@ -180,17 +191,17 @@ public class KubernetesService
 
             try
             {
-                await _client.CreateNamespacedSecretAsync(secret, k8sNamespace);
+                await k8s.CreateNamespacedSecretAsync(secret, k8sNamespace);
             }
             catch
             {
-                Console.WriteLine($"[WARN] Secret {secretName} already exists or creation failed.");
+                AnsiConsole.MarkupLine($"[bold yellow]Secret {secretName} already exists or creation failed.[/]");
             }
         }
         else
         {
             // Maybe we store it in a ConfigMap if not secret
-            Console.WriteLine($"[INFO] Parameter {name} is not marked secret, ignoring or store in ConfigMap if desired.");
+            AnsiConsole.MarkupLine($"[bold yellow]Parameter {name} is not marked secret, ignoring or store in ConfigMap if desired.[/]");
         }
     }
 

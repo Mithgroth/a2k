@@ -1,21 +1,38 @@
-﻿using a2k.Shared.Models;
+﻿namespace a2k.Shared.Models;
 
-namespace Shared.Models;
-
-public class AspireSolution
+public sealed class AspireSolution
 {
     /// <summary>
-    /// Represents .sln file name in a .NET Aspire solution, used as Application name in Kubernetes.
+    /// Represents .sln file name in a .NET Aspire solution, used as Application name in Kubernetes
     /// </summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>
-    /// .NET Projects in the Aspire solution (these will require docker build)
-    /// </summary>
-    public IList<AspireProject> Projects { get; set; } = [];
+    public string Namespace { get; set; } = "default";
 
     /// <summary>
-    /// Any other resources in Aspire solution (databases, cache, etc)
+    /// AppHost folder path of the .NET Aspire solution
     /// </summary>
-    public IList<AspireResource> Resources { get; set; } = [];
+    public string AppHostPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// manifest.json path of the AppHost project
+    /// </summary>
+    public string ManifestPath { get; set; } = string.Empty;
+    public AspireManifest? Manifest { get; set; }
+
+    public ICollection<AspireResource> Resources { get; set; } = [];
+
+    public AspireSolution(string appHost, string? @namespace)
+    {
+        // TODO: Ensure it is a .NET Aspire solution
+
+        AppHostPath = appHost ?? throw new ArgumentNullException(nameof(appHost));
+        ManifestPath = Path.Combine(appHost, "manifest.json");
+        Name = Path.GetFileName(Directory.GetParent(appHost)?.FullName ?? "aspire-app").Replace(".sln", string.Empty);
+
+        if (!string.IsNullOrEmpty(@namespace))
+        {
+            Namespace = @namespace;
+        }
+    }
 }
