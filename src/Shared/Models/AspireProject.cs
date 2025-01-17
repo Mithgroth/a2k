@@ -1,7 +1,18 @@
-﻿namespace a2k.Shared.Models;
+﻿using System.Xml.Linq;
 
-public class AspireProject
+namespace a2k.Shared.Models;
+
+/// <summary>
+/// Represents a .NET project in Aspire environment
+/// </summary>
+public class AspireProject : AspireResource
 {
-    public string Name { get; set; } = string.Empty;
+    public AspireProject(string name, string csProjPath) : base(name)
+    {
+        Type = AspireResourceType.Project;
+        CsProjPath = csProjPath;
+    }
+
+    public string CsProjPath { get; set; }
     public Dockerfile? Dockerfile { get; set; }
 }
