@@ -23,7 +23,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\cli\a2k.Cli.csproj" />
-    <ProjectReference Include="..\..\src\ManifestExtensions\a2k.ManifestExtensions.csproj" />
     <ProjectReference Include="..\..\src\Shared\a2k.Shared.csproj" />
   </ItemGroup>
 
