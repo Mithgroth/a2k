@@ -2,7 +2,7 @@
 using k8s;
 using k8s.Models;
 
-namespace a2k.Cli.Services;
+namespace a2k.Cli.Deployment;
 
 public class KubernetesService
 {
@@ -28,7 +28,7 @@ public class KubernetesService
             { "app.kubernetes.io/managed-by", "a2k" }
         };
 
-        try 
+        try
         {
             await _client.CoreV1.ReadNamespaceAsync(k8sNamespace);
         }
@@ -42,7 +42,7 @@ public class KubernetesService
                     Labels = commonLabels
                 }
             };
-            
+
             await _client.CoreV1.CreateNamespaceAsync(namespaceObj);
             Console.WriteLine($"[INFO] Created namespace {k8sNamespace}");
         }
@@ -70,12 +70,12 @@ public class KubernetesService
         }
     }
 
-    private async Task DeployContainerResource(string name, AspireResource resource, string k8sNamespace, string applicationName)
+    private async Task DeployContainerResource(string name, ManifestResource resource, string k8sNamespace, string applicationName)
     {
         Console.WriteLine($"[INFO] Deploying container resource: {name}");
 
         var imageName = _resourceToImageMap.TryGetValue(name, out var image) ? image : $"{name}:latest";
-        
+
         var deployment = CreateBasicDeployment(
             name,
             resource.Env,
@@ -110,7 +110,7 @@ public class KubernetesService
         }
     }
 
-    private async Task DeployProjectResource(string name, AspireResource resource, string k8sNamespace, string applicationName)
+    private async Task DeployProjectResource(string name, ManifestResource resource, string k8sNamespace, string applicationName)
     {
         Console.WriteLine($"[INFO] Deploying project resource: {name}");
 
@@ -150,7 +150,7 @@ public class KubernetesService
         }
     }
 
-    private async Task HandleParameterResource(string name, AspireResource resource, string k8sNamespace)
+    private async Task HandleParameterResource(string name, ManifestResource resource, string k8sNamespace)
     {
         Console.WriteLine($"[INFO] Handling parameter resource: {name}");
 

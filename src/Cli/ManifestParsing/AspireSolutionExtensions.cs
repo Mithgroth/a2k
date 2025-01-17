@@ -1,9 +1,9 @@
-﻿using a2k.Cli.Services;
-using a2k.Shared;
+﻿using a2k.Shared;
 using a2k.Shared.Models;
+using Spectre.Console;
 using System.Text.Json;
 
-namespace a2k.Cli;
+namespace a2k.Cli.ManifestParsing;
 
 public static class AspireSolutionExtensions
 {
@@ -11,37 +11,36 @@ public static class AspireSolutionExtensions
     {
         if (!File.Exists(aspireSolution.ManifestPath))
         {
-            Console.WriteLine($"manifest.json file not found at {aspireSolution.ManifestPath}, creating...");
-            ShellService.RunCommand("run --publisher manifest --output-path manifest.json", "dotnet");
-            Console.WriteLine($"manifest.json file created!");
+            AnsiConsole.MarkupLine($"[yellow]manifest.json file not found at {aspireSolution.ManifestPath}, creating...[/]");
+            Shell.Run("dotnet run --publisher manifest --output-path manifest.json");
+            AnsiConsole.MarkupLine("[green]manifest.json file created![/]");
         }
     }
 
     public static async Task ReadManifest(this AspireSolution aspireSolution)
     {
-        Console.WriteLine($"[INFO] Loading manifest from: {aspireSolution.ManifestPath}");
+        aspireSolution.CreateManifestIfNotExists();
+
+        AnsiConsole.MarkupLine($"[yellow]Loading manifest from: {aspireSolution.ManifestPath}[/]");
         var json = await File.ReadAllTextAsync(aspireSolution.ManifestPath);
 
         var manifest = JsonSerializer.Deserialize<AspireManifest>(json, Defaults.JsonSerializerOptions);
         if (manifest == null)
         {
-            Console.WriteLine($"Error: Failed to parse manifest at {aspireSolution.ManifestPath}");
-            return;
+            throw new ArgumentNullException(nameof(manifest), "Could not read AppHost's manifest.json!");
         }
 
         foreach (var (resourceName, resource) in manifest.Resources)
         {
-            var resourceType = MapAspireResourceType(resource);
+            var resourceType = resource.MapAspireResourceType();
             if (resourceType == AspireResourceType.Project)
             {
                 var csProjPath = Path.GetFullPath(Path.Combine(aspireSolution.AppHostPath, resource.Path));
-                var projectPath = Path.GetDirectoryName(csProjPath) ?? ".";
-                //var dockerfile = Path.Combine(aspireSolution.AppHostPath, projectPath, "Dockerfile");
-                //var imageName = $"{aspireSolution.Name.ToLower()}-{resourceName}:latest";
+                var projectName = Path.GetDirectoryName(csProjPath) ?? resourceName;
 
                 var project = new AspireProject(resourceName, csProjPath)
                 {
-                    Dockerfile = new Dockerfile($"{aspireSolution.Name.ToLower()}-{resourceName}", "latest")
+                    Dockerfile = new Dockerfile($"{aspireSolution.Name.ToLowerInvariant()}-{projectName.ToLowerInvariant()}", "latest")
                 };
 
                 aspireSolution.Resources.Add(project);

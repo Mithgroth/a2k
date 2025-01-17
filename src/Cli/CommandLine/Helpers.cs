@@ -2,9 +2,9 @@
 using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;
 
-namespace a2k.Cli.Helpers;
+namespace a2k.Cli.CommandLine;
 
-internal static class CommandLineHelpers
+internal static class Helpers
 {
     internal static void Greet()
     {

@@ -1,14 +1,20 @@
 ﻿using System.Diagnostics;
 
-namespace a2k.Cli.Services;
+namespace a2k.Cli;
 
-public class ShellService
+public static class Shell
 {
-    public static void RunCommand(string arguments, string? fileName = "", bool throwOnError = true)
+    public static void Run(string command, bool throwOnError = true)
     {
+        if (string.IsNullOrEmpty(command))
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+
         using var process = new Process();
-        process.StartInfo.FileName = fileName;
-        process.StartInfo.Arguments = arguments;
+        var parts = command.Split(' ', 2);
+        process.StartInfo.FileName = parts[0];
+        process.StartInfo.Arguments = parts.Length > 1 ? parts[1] : string.Empty;
         process.StartInfo.RedirectStandardOutput = true;
         process.StartInfo.RedirectStandardError = true;
         process.StartInfo.RedirectStandardInput = true;
@@ -24,7 +30,7 @@ public class ShellService
 
         if (process.ExitCode != 0 && throwOnError)
         {
-            throw new Exception($"Docker command failed: {stderr}");
+            throw new Exception($"Command failed: {stderr}");
         }
     }
 }

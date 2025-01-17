@@ -1,6 +1,7 @@
-﻿using a2k.Cli.Helpers;
-using a2k.Cli.Services;
+﻿using a2k.Cli.CommandLine;
+using a2k.Cli.ManifestParsing;
 using a2k.Shared.Models;
+using Spectre.Console;
 using System.CommandLine;
 
 namespace a2k.Cli;
@@ -9,9 +10,9 @@ public class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        CommandLineHelpers.Greet();
+        Helpers.Greet();
 
-        var rootCommand = CommandLineHelpers.WireUp<string, string>(RunDeploymentAsync);
+        var rootCommand = Helpers.WireUp<string, string>(RunDeploymentAsync);
         return await rootCommand.InvokeAsync(args);
     }
 
@@ -23,8 +24,8 @@ public class Program
 
         try
         {
-            Console.WriteLine("[INFO] Logging in to Docker...");
-            ShellService.RunCommand("login", "docker");
+            AnsiConsole.MarkupLine("[blue]Logging in to Docker...[/]");
+            Shell.Run("docker login");
 
             //Console.WriteLine("[INFO] Deploying resources to Kubernetes...");
             //var k8sService = new KubernetesService();
@@ -34,7 +35,7 @@ public class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] {ex.Message}");
+            AnsiConsole.MarkupLine($"[bold red][ERROR] {ex.Message}[/]");
         }
     }
 }
