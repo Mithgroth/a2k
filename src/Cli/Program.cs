@@ -25,18 +25,21 @@ public class Program
 
         try
         {
-            AnsiConsole.MarkupLine("[bold blue]Logging in to Docker...[/]");
+            AnsiConsole.MarkupLine("[blue]Logging in to [bold]Docker...[/][/]");
             Shell.Run("docker login");
 
-            AnsiConsole.MarkupLine("[bold blue]Deploying resources to Kubernetes...[/]");
+            await AnsiConsole.Status()
+                .Spinner(Spinner.Known.Star)
+                .Start("[bold blue]Deploying resources to Kubernetes...[/]", async ctx => {
+                    var deployment = new Deployment(solution);
 
-            var deployment = new Deployment(solution);
-            
-            var namespaceResult = await deployment.CheckNamespace();
-            AnsiConsole.MarkupLine($"[bold {Helpers.PickColourForResult(namespaceResult)}]Checking namespace: {namespaceResult}[/]");
+                    var namespaceResult = await deployment.CheckNamespace();
+                    AnsiConsole.MarkupLine($"[bold {Helpers.PickColourForResult(namespaceResult)}]Checking namespace: {namespaceResult}[/]");
 
-            await deployment.Deploy();
-            AnsiConsole.MarkupLine("[bold green]Deployment completed![/]");
+                    await deployment.Deploy();
+                });
+
+            AnsiConsole.MarkupLine("[bold green]:thumbs_up: Deployment completed![/]");
         }
         catch (Exception ex)
         {

@@ -22,7 +22,19 @@ internal static class AspireSolutionExtensions
     {
         aspireSolution.CreateManifestIfNotExists();
 
-        AnsiConsole.MarkupLine($"[yellow]Loading manifest from: {aspireSolution.ManifestPath}[/]");
+        var path = new TextPath(aspireSolution.ManifestPath)
+            .RootColor(Color.Wheat4)
+            .SeparatorColor(Color.White)
+            .StemColor(Color.Wheat4)
+            .LeafColor(Color.Yellow);
+
+        var panel = new Panel(path)
+        {
+            Header = new("Loading manifest from")
+        };
+
+        AnsiConsole.Write(panel);
+
         var json = await File.ReadAllTextAsync(aspireSolution.ManifestPath);
 
         var manifest = JsonSerializer.Deserialize<Manifest>(json, Defaults.JsonSerializerOptions);

@@ -9,9 +9,9 @@ internal static class Helpers
 {
     internal static void Greet()
     {
+        AnsiConsole.Write(new FigletText("a2k").Color(Color.Fuchsia).Centered());
+        AnsiConsole.Write(new Markup("[slowblink plum4]Deploy .NET Aspire to Kubernetes![/]").Centered());
         AnsiConsole.WriteLine();
-        AnsiConsole.Write(new FigletText("a2k").Color(Color.HotPink));
-        AnsiConsole.MarkupLine("[bold lime]Deploy .NET Aspire to Kubernetes![/]");
         AnsiConsole.WriteLine();
     }
 
