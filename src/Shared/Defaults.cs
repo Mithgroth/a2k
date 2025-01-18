@@ -14,14 +14,30 @@ public static class Defaults
         ReadCommentHandling = JsonCommentHandling.Skip,
     };
 
-    public static Dictionary<string, string> Labels(string applicationName,
-                                                    string resourceName)
-        => new()
+    public static Dictionary<string, string> Labels(string applicationName, string? resourceName = "")
+    {
+        var defaultLabels = new Dictionary<string, string>()
         {
             { "application", applicationName },
             { "deployed-by", "a2k" },
-            { "name", resourceName },
         };
+
+        if (!string.IsNullOrEmpty(resourceName))
+        {
+            defaultLabels["name"] = resourceName;
+        }
+
+        return defaultLabels;
+    }
+
+    public static V1Namespace V1Namespace(string @namespace, string applicationName) => new()
+    {
+        Metadata = new V1ObjectMeta
+        {
+            Name = @namespace,
+            Labels = Labels(applicationName),
+        }
+    };
 
     public static V1Deployment V1Deployment(string applicationName, string resourceName) => new()
     {

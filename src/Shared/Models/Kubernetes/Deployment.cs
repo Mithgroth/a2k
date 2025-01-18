@@ -8,11 +8,6 @@ namespace a2k.Shared.Models.Kubernetes;
 public class Deployment(Solution AspireSolution)
 {
     private readonly k8s.Kubernetes k8s = new(KubernetesClientConfiguration.BuildConfigFromConfigFile());
-    private Dictionary<string, string> CommonLabels { get; set; } = new Dictionary<string, string>
-        {
-            { "name", AspireSolution.Name },
-            { "managed-by", "a2k" }
-        };
 
     public async Task<ResourceOperationResult> CheckNamespace(bool shouldCreateIfNotExists = true)
     {
@@ -28,16 +23,7 @@ public class Deployment(Solution AspireSolution)
                 return ResourceOperationResult.Missing;
             }
 
-            var namespaceObj = new V1Namespace
-            {
-                Metadata = new V1ObjectMeta
-                {
-                    Name = AspireSolution.Namespace,
-                    Labels = CommonLabels,
-                }
-            };
-
-            await k8s.CreateNamespaceAsync(namespaceObj);
+            await k8s.CreateNamespaceAsync(Defaults.V1Namespace(AspireSolution.Namespace, AspireSolution.Name));
             return ResourceOperationResult.Created;
         }
     }
