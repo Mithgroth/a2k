@@ -11,4 +11,14 @@ public static class Defaults
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         ReadCommentHandling = JsonCommentHandling.Skip,
     };
+
+    public static Dictionary<string, string> Labels(string applicationName,
+                                                    string resourceName)
+        => new()
+        {
+            { "application", applicationName },
+            { "deployed-by", "a2k" },
+            { "name", resourceName },
+        };
+
 }

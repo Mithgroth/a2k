@@ -36,14 +36,6 @@ public abstract record AspireResource(string SolutionName,
             }
         }
 
-        var labels = new Dictionary<string, string>
-        {
-            { "app", ResourceName },
-            { "app.kubernetes.io/name", SolutionName },
-            { "app.kubernetes.io/managed-by", "a2k" },
-            { "app.kubernetes.io/component", ResourceName }
-        };
-
         // Build the K8s Deployment
         return new V1Deployment
         {
@@ -52,20 +44,20 @@ public abstract record AspireResource(string SolutionName,
             Metadata = new V1ObjectMeta
             {
                 Name = ResourceName,
-                Labels = labels
+                Labels = Defaults.Labels(SolutionName, ResourceName),
             },
             Spec = new V1DeploymentSpec
             {
                 Replicas = 1,
                 Selector = new V1LabelSelector
                 {
-                    MatchLabels = labels
+                    MatchLabels = Defaults.Labels(SolutionName, ResourceName),
                 },
                 Template = new V1PodTemplateSpec
                 {
                     Metadata = new V1ObjectMeta
                     {
-                        Labels = labels
+                        Labels = Defaults.Labels(SolutionName, ResourceName),
                     },
                     Spec = new V1PodSpec
                     {
@@ -104,14 +96,6 @@ public abstract record AspireResource(string SolutionName,
             }
         }
 
-        var labels = new Dictionary<string, string>
-        {
-            { "app", ResourceName },
-            { "app.kubernetes.io/name", SolutionName },
-            { "app.kubernetes.io/managed-by", "a2k" },
-            { "app.kubernetes.io/component", ResourceName }
-        };
-
         return new V1Service
         {
             ApiVersion = "v1",
@@ -119,11 +103,11 @@ public abstract record AspireResource(string SolutionName,
             Metadata = new V1ObjectMeta
             {
                 Name = $"{ResourceName}-service",
-                Labels = labels
+                Labels = Defaults.Labels(SolutionName, ResourceName)
             },
             Spec = new V1ServiceSpec
             {
-                Selector = labels,
+                Selector = Defaults.Labels(SolutionName, ResourceName),
                 Ports =
                 [
                     new()
