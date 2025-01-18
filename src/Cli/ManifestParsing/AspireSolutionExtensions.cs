@@ -51,6 +51,7 @@ internal static class AspireSolutionExtensions
             if (resourceType == AspireResourceType.Project)
             {
                 var project = new Project(
+                    aspireSolution.Namespace,
                     aspireSolution.Name,
                     resourceName,
                     CsProjPath: Path.GetFullPath(Path.Combine(aspireSolution.AppHostPath, resource.Path)),
@@ -63,6 +64,7 @@ internal static class AspireSolutionExtensions
             else if (resourceType == AspireResourceType.Container)
             {
                 var container = new Container(
+                    aspireSolution.Namespace,
                     aspireSolution.Name,
                     resourceName,
                     Dockerfile: resource switch

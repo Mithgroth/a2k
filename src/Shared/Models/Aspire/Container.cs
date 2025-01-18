@@ -7,11 +7,12 @@ namespace a2k.Shared.Models.Aspire;
 /// <summary>
 /// Represents a container resource in .NET Aspire environment (redis, postgres, etc)
 /// </summary>
-public record Container(string SolutionName,
-                              string ResourceName,
-                              Dockerfile? Dockerfile,
-                              Dictionary<string, ResourceBinding> Bindings,
-                              Dictionary<string, string> Env)
+public record Container(string Namespace,
+                        string SolutionName,
+                        string ResourceName,
+                        Dockerfile? Dockerfile,
+                        Dictionary<string, ResourceBinding> Bindings,
+                        Dictionary<string, string> Env)
     : Resource(SolutionName, ResourceName, Dockerfile, Bindings, Env, AspireResourceType.Container)
 {
     public override async Task<ResourceOperationResult> Deploy(k8s.Kubernetes k8s)
@@ -39,18 +40,18 @@ public record Container(string SolutionName,
         // Create or replace (for brevity, we’ll just create)
         try
         {
-            await k8s.CreateNamespacedDeploymentAsync(deployment, "AspireSolution.Namespace");
+            await k8s.CreateNamespacedDeploymentAsync(deployment, Namespace);
         }
-        catch
+        catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[bold yellow]Deployment for {ResourceName} already exists or creation failed. You may want to implement patch/replace logic.[/]");
         }
 
         try
         {
-            await k8s.CreateNamespacedServiceAsync(service, "AspireSolution.Namespace");
+            await k8s.CreateNamespacedServiceAsync(service, Namespace);
         }
-        catch
+        catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[bold yellow]Service for {ResourceName} already exists or creation failed. You may want to implement patch/replace logic.[/]");
         }

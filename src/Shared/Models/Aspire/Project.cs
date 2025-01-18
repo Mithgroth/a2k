@@ -7,12 +7,13 @@ namespace a2k.Shared.Models.Aspire;
 /// <summary>
 /// Represents a .NET project in Aspire environment
 /// </summary>
-public record Project(string SolutionName,
-                            string ResourceName,
-                            string CsProjPath,
-                            Dockerfile? Dockerfile,
-                            Dictionary<string, ResourceBinding> Bindings,
-                            Dictionary<string, string> Env)
+public record Project(string Namespace,
+                      string SolutionName,
+                      string ResourceName,
+                      string CsProjPath,
+                      Dockerfile? Dockerfile,
+                      Dictionary<string, ResourceBinding> Bindings,
+                      Dictionary<string, string> Env)
     : Resource(SolutionName, ResourceName, Dockerfile, Bindings, Env, AspireResourceType.Project)
 {
     public void PublishContainer()
@@ -32,18 +33,18 @@ public record Project(string SolutionName,
         // Create or replace
         try
         {
-            await k8s.CreateNamespacedDeploymentAsync(deployment, "AspireSolution.Namespace");
+            await k8s.CreateNamespacedDeploymentAsync(deployment, Namespace);
         }
-        catch
+        catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[bold yellow]Deployment for {ResourceName} already exists or creation failed.[/]");
         }
 
         try
         {
-            await k8s.CreateNamespacedServiceAsync(service, "AspireSolution.Namespace");
+            await k8s.CreateNamespacedServiceAsync(service, Namespace);
         }
-        catch
+        catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[bold yellow]Service for {ResourceName} already exists or creation failed.[/]");
         }

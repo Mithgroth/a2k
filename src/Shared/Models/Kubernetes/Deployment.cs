@@ -10,8 +10,8 @@ public class Deployment(Solution AspireSolution)
     private readonly k8s.Kubernetes k8s = new(KubernetesClientConfiguration.BuildConfigFromConfigFile());
     private Dictionary<string, string> CommonLabels { get; set; } = new Dictionary<string, string>
         {
-            { "app.kubernetes.io/name", AspireSolution.Name },
-            { "app.kubernetes.io/managed-by", "a2k" }
+            { "name", AspireSolution.Name },
+            { "managed-by", "a2k" }
         };
 
     public async Task<ResourceOperationResult> CheckNamespace(bool shouldCreateIfNotExists = true)

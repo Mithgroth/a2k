@@ -1,9 +1,9 @@
-﻿using k8s;
-using System.Diagnostics;
+﻿using a2k.Shared;
+using k8s;
 
 namespace E2E;
 
-public class k8sDeployment
+public class k8sDeployment : IDisposable
 {
     private readonly string TestNamespace = "e2e-tests";
     private readonly string AspireProjectPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "tests", "AspireApp1", "AspireApp1.AppHost");
@@ -33,8 +33,7 @@ public class k8sDeployment
             throw new Exception($"AppHost path not found: {appHostPath}");
         }
 
-        Console.WriteLine("[INFO] Running a2k CLI to deploy AspireApp1...");
-        RunShellCommand(cliExecutablePath, $"--appHost {appHostPath} --namespace {TestNamespace}", workingDirectory: appHostPath);
+        Shell.Run($"{cliExecutablePath} --namespace {TestNamespace}", workingDirectory: appHostPath);
 
         Console.WriteLine("[INFO] Verifying deployment...");
         await WaitForPodsReady(TestNamespace);
@@ -44,36 +43,6 @@ public class k8sDeployment
         Assert.NotEmpty(pods.Items);
         Assert.All(pods.Items, pod => Assert.Equal("Running", pod.Status.Phase));
     }
-
-    private void RunShellCommand(string command, string arguments, string? workingDirectory = null)
-    {
-        using var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = command,
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = workingDirectory ?? Directory.GetCurrentDirectory()
-            }
-        };
-
-        process.Start();
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-
-        Console.WriteLine(stdout);
-
-        if (process.ExitCode != 0)
-        {
-            throw new Exception($"Command '{command} {arguments}' failed: {stderr}");
-        }
-    }
-
 
     private async Task WaitForPodsReady(string ns)
     {
@@ -95,10 +64,15 @@ public class k8sDeployment
         throw new Exception($"Pods in namespace {ns} did not become ready in time.");
     }
 
-    [Fact]
-    public async Task CleanupTestNamespace()
+    //[Fact]
+    //public async Task CleanupTestNamespace()
+    //{
+    //    Console.WriteLine($"[INFO] Cleaning up namespace: {TestNamespace}");
+    //    await _kubernetes.DeleteNamespaceAsync(TestNamespace);
+    //}
+
+    public void Dispose()
     {
-        Console.WriteLine($"[INFO] Cleaning up namespace: {TestNamespace}");
-        await _kubernetes.DeleteNamespaceAsync(TestNamespace);
+        _kubernetes.DeleteNamespaceAsync(TestNamespace).Wait();
     }
 }
