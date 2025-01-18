@@ -4,28 +4,21 @@ using Spectre.Console;
 
 namespace a2k.Shared.Models;
 
-public class KubernetesDeployment
+public class KubernetesDeployment(AspireSolution AspireSolution)
 {
     private readonly Kubernetes k8s = new(KubernetesClientConfiguration.BuildConfigFromConfigFile());
 
-    public string Namespace { get; set; }
-    public Dictionary<string, string> CommonLabels { get; set; }
-
-    public KubernetesDeployment(AspireSolution aspireSolution)
-    {
-        Namespace = aspireSolution.Namespace;
-        CommonLabels = new Dictionary<string, string>
+    public Dictionary<string, string> CommonLabels { get; set; } = new Dictionary<string, string>
         {
-            { "app.kubernetes.io/name", aspireSolution.Name },
+            { "app.kubernetes.io/name", AspireSolution.Name },
             { "app.kubernetes.io/managed-by", "a2k" }
         };
-    }
 
     public async Task<ResourceOperationResult> CheckNamespace(bool shouldCreateIfNotExists = true)
     {
         try
         {
-            await k8s.ReadNamespaceAsync(Namespace);
+            await k8s.ReadNamespaceAsync(AspireSolution.Namespace);
             return ResourceOperationResult.Exists;
         }
         catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -39,7 +32,7 @@ public class KubernetesDeployment
             {
                 Metadata = new V1ObjectMeta
                 {
-                    Name = Namespace,
+                    Name = AspireSolution.Namespace,
                     Labels = CommonLabels,
                 }
             };
@@ -53,20 +46,20 @@ public class KubernetesDeployment
     /// Deploy the resources found in the Aspire manifest. 
     /// In a real scenario, you’d create or update Deployments, Services, Secrets, etc.
     /// </summary>
-    public async Task Deploy(AspireSolution aspireSolution)
+    public async Task Deploy()
     {
         await CheckNamespace();
 
-        foreach (var resource in aspireSolution.Resources)        
+        foreach (var resource in AspireSolution.Resources)
         {
             switch (resource)
             {
                 case AspireContainer container when resource.Type == AspireResourceType.Container:
-                    await DeployContainerResource(aspireSolution, container);
+                    await DeployContainerResource(container);
                     break;
 
                 case AspireProject project when resource.Type == AspireResourceType.Project:
-                    //await DeployProjectResource(resource.Name, resource, k8sNamespace, aspireSolution.Name);
+                    await DeployProjectResource(project);
                     break;
 
                 case var parameter when resource.Type == AspireResourceType.Parameter:
@@ -80,83 +73,79 @@ public class KubernetesDeployment
         }
     }
 
-    private async Task DeployContainerResource(AspireSolution aspireSolution, AspireContainer resource)
+    private async Task DeployContainerResource(AspireContainer container)
     {
-        AnsiConsole.MarkupLine($"[bold gray]Deploying container resource: {resource.Name}[/]");
-
-        var imageName = $"{resource.Name}:latest";
+        AnsiConsole.MarkupLine($"[bold gray]Deploying container resource: {container.Name}[/]");
 
         var deployment = CreateBasicDeployment(
             container.Name,
             container.Env,
             container.Bindings,
             $"{container.Dockerfile.Name}:{container.Dockerfile.Tag}",
-            aspireSolution.Name
+            AspireSolution.Name
         );
 
         var service = CreateBasicService(
             container.Name,
             container.Bindings,
-            aspireSolution.Name
+            AspireSolution.Name
         );
 
         // Create or replace (for brevity, we’ll just create)
         try
         {
-            await k8s.CreateNamespacedDeploymentAsync(deployment, aspireSolution.Namespace);
+            await k8s.CreateNamespacedDeploymentAsync(deployment, AspireSolution.Namespace);
         }
         catch
         {
-            AnsiConsole.MarkupLine($"[bold yellow]Deployment {aspireSolution.Name} already exists or creation failed. You may want to implement patch/replace logic.[/]");
+            AnsiConsole.MarkupLine($"[bold yellow]Deployment {AspireSolution.Name} already exists or creation failed. You may want to implement patch/replace logic.[/]");
         }
 
         try
         {
-            await k8s.CreateNamespacedServiceAsync(service, aspireSolution.Namespace);
+            await k8s.CreateNamespacedServiceAsync(service, AspireSolution.Namespace);
         }
         catch
         {
-            AnsiConsole.MarkupLine($"[bold yellow]Service {aspireSolution.Name} already exists or creation failed. You may want to implement patch/replace logic.[/]");
+            AnsiConsole.MarkupLine($"[bold yellow]Service {AspireSolution.Name} already exists or creation failed. You may want to implement patch/replace logic.[/]");
         }
     }
 
-    private async Task DeployProjectResource(string name, ManifestResource resource, string k8sNamespace, string applicationName)
+    private async Task DeployProjectResource(AspireProject project)
     {
-        AnsiConsole.MarkupLine($"[bold gray]Deploying project resource: {name}[/]");
-
-        var imageName = $"{name}:latest";
+        AnsiConsole.MarkupLine($"[bold gray]Deploying project resource: {project.Name}[/]");
 
         var deployment = CreateBasicDeployment(
-            name,
-            resource.Env,
-            resource.Bindings,
-            imageName,
-            applicationName
+            project.Name,
+            project.Env,
+            project.Bindings,
+            $"{project.Dockerfile.Name}:{project.Dockerfile.Tag}",
+            AspireSolution.Name
         );
 
         var service = CreateBasicService(
-            name,
-            resource.Bindings,
-            applicationName
+            project.Name,
+            project.Bindings,
+            AspireSolution.Name
         );
 
         // Create or replace
         try
         {
-            await k8s.CreateNamespacedDeploymentAsync(deployment, k8sNamespace);
+            await k8s.CreateNamespacedDeploymentAsync(deployment, AspireSolution.Namespace);
         }
         catch
         {
-            AnsiConsole.MarkupLine($"[bold yellow]Deployment {name} already exists or creation failed.[/]");
+            AnsiConsole.MarkupLine($"[bold yellow]Deployment {AspireSolution.Namespace} already exists or creation failed.[/]");
         }
 
         try
         {
-            await k8s.CreateNamespacedServiceAsync(service, k8sNamespace);
+            await k8s.CreateNamespacedServiceAsync(service, AspireSolution.Namespace);
         }
         catch
         {
-            AnsiConsole.MarkupLine($"[bold yellow]Service {name} already exists or creation failed.[/]");
+            AnsiConsole.MarkupLine($"[bold yellow]Service {AspireSolution.Namespace} already exists or creation failed.[/]");
         }
     }
 
