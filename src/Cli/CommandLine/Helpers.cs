@@ -1,4 +1,5 @@
-﻿using Spectre.Console;
+﻿using a2k.Shared.Models;
+using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;
 
@@ -46,4 +47,15 @@ internal static class Helpers
 
         return rootCommand;
     }
+
+    internal static string PickColourForResult(ResourceOperationResult result) => result switch
+    {
+        ResourceOperationResult.Created => "green",
+        ResourceOperationResult.Exists => "white",
+        ResourceOperationResult.Replaced => "yellow",
+        ResourceOperationResult.Deleted => "red",
+        ResourceOperationResult.Missing => "gray",
+        ResourceOperationResult.Failed => "red",
+        _ => "white"
+    };
 }

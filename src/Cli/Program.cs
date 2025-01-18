@@ -29,6 +29,10 @@ public class Program
             AnsiConsole.MarkupLine("[bold blue]Deploying resources to Kubernetes...[/]");
 
             var k8sDeployment = new KubernetesDeployment(aspireSolution);
+            
+            var namespaceResult = await k8sDeployment.CheckNamespace();
+            AnsiConsole.MarkupLine($"[bold {Helpers.PickColourForResult(namespaceResult)}]Checking namespace: {namespaceResult}[/]");
+
             await k8sDeployment.Deploy();
             AnsiConsole.MarkupLine("[bold green]Deployment completed![/]");
         }

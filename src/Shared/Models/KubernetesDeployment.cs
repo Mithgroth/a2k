@@ -48,8 +48,6 @@ public class KubernetesDeployment(AspireSolution AspireSolution)
     /// </summary>
     public async Task Deploy()
     {
-        await CheckNamespace();
-
         foreach (var resource in AspireSolution.Resources)
         {
             switch (resource)
