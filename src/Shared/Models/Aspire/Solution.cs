@@ -1,4 +1,7 @@
-﻿namespace a2k.Shared.Models.Aspire;
+﻿using a2k.Shared.Models.Kubernetes;
+using k8s;
+
+namespace a2k.Shared.Models.Aspire;
 
 public sealed record Solution
 {
@@ -33,6 +36,25 @@ public sealed record Solution
         if (!string.IsNullOrEmpty(@namespace))
         {
             Namespace = @namespace;
+        }
+    }
+
+    public async Task<ResourceOperationResult> CheckNamespace(k8s.Kubernetes k8s, bool shouldCreateIfNotExists = true)
+    {
+        try
+        {
+            await k8s.ReadNamespaceAsync(Namespace);
+            return ResourceOperationResult.Exists;
+        }
+        catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            if (!shouldCreateIfNotExists)
+            {
+                return ResourceOperationResult.Missing;
+            }
+
+            await k8s.CreateNamespaceAsync(Defaults.V1Namespace(Namespace, Name));
+            return ResourceOperationResult.Created;
         }
     }
 }
