@@ -4,11 +4,11 @@ using System.Text.Json;
 
 namespace ManifestLoading;
 
-public class ManifestLoadingTests
+public class Test
 {
     private readonly string TestManifestsPath = Path.Combine(AppContext.BaseDirectory, "TestManifests");
 
-    public ManifestLoadingTests()
+    public Test()
     {
 
     }
