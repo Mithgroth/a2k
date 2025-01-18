@@ -36,32 +36,20 @@ public abstract record AspireResource(string SolutionName,
             }
         }
 
-        // Build the K8s Deployment
-        return new V1Deployment
+        var resource = Defaults.V1Deployment(SolutionName, ResourceName);
+        resource.Spec = new V1DeploymentSpec
         {
-            ApiVersion = "apps/v1",
-            Kind = "Deployment",
-            Metadata = new V1ObjectMeta
+            Replicas = 1,
+            Selector = Defaults.V1LabelSelector(resource.Metadata.Labels),
+            Template = new V1PodTemplateSpec
             {
-                Name = ResourceName,
-                Labels = Defaults.Labels(SolutionName, ResourceName),
-            },
-            Spec = new V1DeploymentSpec
-            {
-                Replicas = 1,
-                Selector = new V1LabelSelector
+                Metadata = new V1ObjectMeta
                 {
-                    MatchLabels = Defaults.Labels(SolutionName, ResourceName),
+                    Labels = Defaults.Labels(SolutionName, ResourceName),
                 },
-                Template = new V1PodTemplateSpec
+                Spec = new V1PodSpec
                 {
-                    Metadata = new V1ObjectMeta
-                    {
-                        Labels = Defaults.Labels(SolutionName, ResourceName),
-                    },
-                    Spec = new V1PodSpec
-                    {
-                        Containers =
+                    Containers =
                         [
                             new() {
                                 Name = ResourceName,
@@ -74,10 +62,11 @@ public abstract record AspireResource(string SolutionName,
                                 Env = containerEnv
                             }
                         ]
-                    }
                 }
             }
         };
+
+        return resource;
     }
 
     public V1Service ToKubernetesService()
@@ -96,28 +85,14 @@ public abstract record AspireResource(string SolutionName,
             }
         }
 
-        return new V1Service
+        var resource = Defaults.V1Service(SolutionName, ResourceName);
+        resource.Spec = new V1ServiceSpec
         {
-            ApiVersion = "v1",
-            Kind = "Service",
-            Metadata = new V1ObjectMeta
-            {
-                Name = $"{ResourceName}-service",
-                Labels = Defaults.Labels(SolutionName, ResourceName)
-            },
-            Spec = new V1ServiceSpec
-            {
-                Selector = Defaults.Labels(SolutionName, ResourceName),
-                Ports =
-                [
-                    new()
-                    {
-                        Port = port,
-                        TargetPort = port
-                    }
-                ]
-            }
+            Selector = Defaults.Labels(SolutionName, ResourceName),
+            Ports = [ new() { Port = port, TargetPort = port } ]
         };
+
+        return resource;
     }
 }
 
