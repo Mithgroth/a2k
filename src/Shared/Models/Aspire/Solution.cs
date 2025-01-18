@@ -1,5 +1,7 @@
 ﻿using a2k.Shared.Models.Kubernetes;
 using k8s;
+using Spectre.Console;
+using System.Text.Json;
 
 namespace a2k.Shared.Models.Aspire;
 
@@ -23,7 +25,7 @@ public sealed record Solution
     public string ManifestPath { get; set; } = string.Empty;
     public Manifest? Manifest { get; set; }
 
-    public ICollection<Resource> Resources { get; set; } = [];
+    public List<Resource> Resources { get; set; } = [];
 
     public Solution(string appHost, string? @namespace)
     {
@@ -36,6 +38,96 @@ public sealed record Solution
         if (!string.IsNullOrEmpty(@namespace))
         {
             Namespace = @namespace;
+        }
+    }
+
+    public void CreateManifestIfNotExists()
+    {
+        if (!File.Exists(ManifestPath))
+        {
+            AnsiConsole.MarkupLine($"[yellow]manifest.json file not found at {ManifestPath}, creating...[/]");
+            Shell.Run("dotnet run --publisher manifest --output-path manifest.json");
+            AnsiConsole.MarkupLine("[green]manifest.json file created![/]");
+        }
+    }
+
+    public async Task<ResourceOperationResult> ReadManifest()
+    {
+        CreateManifestIfNotExists();
+
+        var path = new TextPath(ManifestPath)
+            .RootColor(Color.Wheat4)
+            .SeparatorColor(Color.White)
+            .StemColor(Color.Wheat4)
+            .LeafColor(Color.Yellow);
+
+        var panel = new Panel(path)
+        {
+            Header = new("Loading manifest from")
+        };
+
+        AnsiConsole.Write(panel);
+
+        var json = await File.ReadAllTextAsync(ManifestPath);
+
+        var manifest = JsonSerializer.Deserialize<Manifest>(json, Defaults.JsonSerializerOptions);
+        if (manifest == null)
+        {
+            throw new ArgumentNullException(nameof(manifest), "Could not read AppHost's manifest.json!");
+        }
+
+        Manifest = manifest;
+
+        foreach (var (resourceName, manifestResource) in manifest.Resources)
+        {
+            var resource = ToResource(resourceName, manifestResource);
+            Resources.Add(resource);
+        }
+
+        return ResourceOperationResult.Succeeded;
+
+        Resource ToResource(string resourceName, ManifestResource manifestResource)
+            => manifestResource.ResourceType switch
+            {
+                var rt when rt.Contains("project", StringComparison.OrdinalIgnoreCase)
+                    => new Project(Namespace,
+                                   Name,
+                                   resourceName,
+                                   CsProjPath: Path.GetFullPath(Path.Combine(   AppHostPath, manifestResource.Path)),
+                                   new Dockerfile($"{Name.ToLowerInvariant()}-{resourceName.ToLowerInvariant()}", "latest"),
+                                   manifestResource.Bindings,
+                                   manifestResource.Env),
+                var rt when rt.Contains("container", StringComparison.OrdinalIgnoreCase)
+                    => new Container(Namespace,
+                                     Name,
+                                     resourceName,
+                                     Dockerfile: manifestResource switch
+                                     {
+                                         var r when !string.IsNullOrEmpty(r.Image) => new Dockerfile(r.Image),
+                                         var r when r.Build != null => CreateDockerfile(r, AppHostPath, resourceName),
+                                         _ => throw new ArgumentException(nameof(resourceName)),
+                                     },
+                                     manifestResource.Bindings,
+                                     manifestResource.Env),
+                var rt when rt.Contains("parameter", StringComparison.OrdinalIgnoreCase)
+                    => new Parameter(Namespace,
+                                     Name,
+                                     resourceName,
+                                     manifestResource.Value,
+                                     manifestResource.Inputs),
+                var rt when rt.Contains("value", StringComparison.OrdinalIgnoreCase) => throw new NotImplementedException(resourceName),
+                _ => throw new ArgumentException(resourceName),
+            };
+
+        Dockerfile CreateDockerfile(ManifestResource r, string appHostPath, string resourceName)
+        {
+            var context = Path.Combine(appHostPath, r.Build.Context) ?? ".";
+            var path = Path.Combine(appHostPath, r.Build.Dockerfile.Replace("/", "\\") ?? "Dockerfile");
+
+            return new Dockerfile(resourceName,
+                Context: context,
+                Path: path,
+                ShouldBuildWithDocker: true);
         }
     }
 

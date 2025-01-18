@@ -4,11 +4,11 @@ using k8s.Models;
 namespace a2k.Shared.Models.Aspire;
 
 public abstract record Resource(string SolutionName,
-                                      string ResourceName,
-                                      Dockerfile? Dockerfile,
-                                      Dictionary<string, ResourceBinding> Bindings,
-                                      Dictionary<string, string> Env,
-                                      AspireResourceType ResourceType = AspireResourceType.Unknown)
+                                string ResourceName,
+                                Dockerfile? Dockerfile,
+                                Dictionary<string, ResourceBinding>? Bindings,
+                                Dictionary<string, string>? Env,
+                                AspireResourceType ResourceType = AspireResourceType.Unknown)
 {
     public V1Deployment ToKubernetesDeployment()
     {

@@ -7,7 +7,7 @@ namespace a2k.Shared.Models.Aspire;
 /// <summary>
 /// Represents manifest.json output of dotnet run --publisher manifest --output-path manifest.json command on AppHost project
 /// </summary>
-public record Manifest
+public sealed record Manifest
 {
     [JsonPropertyName("$schema")]
     public string? Schema { get; set; }
@@ -16,7 +16,7 @@ public record Manifest
     public Dictionary<string, ManifestResource> Resources { get; set; } = [];
 }
 
-public record ManifestResource
+public sealed record ManifestResource
 {
     [JsonPropertyName("type")]
     public string ResourceType { get; set; }
@@ -45,7 +45,7 @@ public record ManifestResource
     public string Image { get; set; }
 }
 
-public record ResourceBinding
+public sealed record ResourceBinding
 {
     [JsonPropertyName("scheme")]
     public string Scheme { get; set; }
@@ -63,7 +63,7 @@ public record ResourceBinding
     public int? TargetPort { get; set; }
 }
 
-public record ResourceBuild
+public sealed record ResourceBuild
 {
     [JsonPropertyName("context")]
     public string Context { get; set; }
@@ -72,7 +72,7 @@ public record ResourceBuild
     public string Dockerfile { get; set; }
 }
 
-public record ResourceInput
+public sealed record ResourceInput
 {
     [JsonPropertyName("type")]
     public string Type { get; set; }
@@ -84,13 +84,13 @@ public record ResourceInput
     public DefaultValue Default { get; set; }
 }
 
-public record DefaultValue
+public sealed record DefaultValue
 {
     [JsonPropertyName("generate")]
     public GenerateInfo Generate { get; set; }
 }
 
-public record GenerateInfo
+public sealed record GenerateInfo
 {
     [JsonPropertyName("minLength")]
     public int MinLength { get; set; }

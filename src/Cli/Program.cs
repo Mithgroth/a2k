@@ -1,5 +1,4 @@
 ﻿using a2k.Cli.CommandLine;
-using a2k.Cli.ManifestParsing;
 using a2k.Shared;
 using a2k.Shared.Models.Aspire;
 using k8s;
@@ -30,14 +29,15 @@ public class Program
 
             await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Star)
-                .Start("[bold blue]Deploying resources to Kubernetes...[/]", async ctx => {
+                .Start("[bold blue]Deploying resources to Kubernetes...[/]", 
+                    async ctx =>
+                    {
+                        var k8s = new Kubernetes(KubernetesClientConfiguration.BuildConfigFromConfigFile());
+                        var namespaceResult = await solution.CheckNamespace(k8s);
+                        AnsiConsole.MarkupLine($"[bold {Helpers.PickColourForResult(namespaceResult)}]Checking namespace: {namespaceResult}[/]");
 
-                    var k8s = new Kubernetes(KubernetesClientConfiguration.BuildConfigFromConfigFile());
-                    var namespaceResult = await solution.CheckNamespace(k8s);
-                    AnsiConsole.MarkupLine($"[bold {Helpers.PickColourForResult(namespaceResult)}]Checking namespace: {namespaceResult}[/]");
-
-                    await Task.WhenAll(solution.Resources.Select(resource => resource.Deploy(k8s)));
-                });
+                        await Task.WhenAll(solution.Resources.Select(resource => resource.Deploy(k8s)));
+                    });
 
             AnsiConsole.MarkupLine("[bold green]:thumbs_up: Deployment completed![/]");
         }

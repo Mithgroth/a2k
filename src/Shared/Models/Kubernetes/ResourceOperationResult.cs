@@ -8,4 +8,5 @@ public enum ResourceOperationResult
     Deleted,
     Missing,
     Failed,
+    Succeeded,
 }
