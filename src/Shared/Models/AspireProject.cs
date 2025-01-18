@@ -13,4 +13,6 @@ public class AspireProject : AspireResource
 
     public string CsProjPath { get; set; }
     public Dockerfile? Dockerfile { get; set; }
+    public Dictionary<string, ResourceBinding> Bindings { get; set; }
+    public Dictionary<string, string> Env { get; set; }
 }

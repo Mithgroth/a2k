@@ -43,6 +43,8 @@ internal static class AspireSolutionExtensions
                 var project = new AspireProject(resourceName, csProjPath)
                 {
                     Dockerfile = new Dockerfile($"{aspireSolution.Name.ToLowerInvariant()}-{projectName.ToLowerInvariant()}", "latest"),
+                    Bindings = resource.Bindings,
+                    Env = resource.Env,
                 };
 
                 aspireSolution.Resources.Add(project);

@@ -87,16 +87,16 @@ public class KubernetesDeployment
         var imageName = $"{resource.Name}:latest";
 
         var deployment = CreateBasicDeployment(
-            resource.Name,
-            resource.Env,
-            resource.Bindings,
-            imageName,
+            container.Name,
+            container.Env,
+            container.Bindings,
+            $"{container.Dockerfile.Name}:{container.Dockerfile.Tag}",
             aspireSolution.Name
         );
 
         var service = CreateBasicService(
-            resource.Name,
-            resource.Bindings,
+            container.Name,
+            container.Bindings,
             aspireSolution.Name
         );
 
