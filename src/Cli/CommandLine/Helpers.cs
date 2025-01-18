@@ -1,4 +1,4 @@
-﻿using a2k.Shared.Models;
+﻿using a2k.Shared.Models.Kubernetes;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;

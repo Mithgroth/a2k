@@ -1,7 +1,8 @@
 ﻿using a2k.Cli.CommandLine;
 using a2k.Cli.ManifestParsing;
 using a2k.Shared;
-using a2k.Shared.Models;
+using a2k.Shared.Models.Aspire;
+using a2k.Shared.Models.Kubernetes;
 using Spectre.Console;
 using System.CommandLine;
 
@@ -19,8 +20,8 @@ public class Program
 
     private static async Task RunDeployment(string appHost, string @namespace)
     {
-        var aspireSolution = new AspireSolution(appHost, @namespace);
-        await aspireSolution.ReadManifest();
+        var solution = new Solution(appHost, @namespace);
+        await solution.ReadManifest();
 
         try
         {
@@ -29,12 +30,12 @@ public class Program
 
             AnsiConsole.MarkupLine("[bold blue]Deploying resources to Kubernetes...[/]");
 
-            var k8sDeployment = new KubernetesDeployment(aspireSolution);
+            var deployment = new Deployment(solution);
             
-            var namespaceResult = await k8sDeployment.CheckNamespace();
+            var namespaceResult = await deployment.CheckNamespace();
             AnsiConsole.MarkupLine($"[bold {Helpers.PickColourForResult(namespaceResult)}]Checking namespace: {namespaceResult}[/]");
 
-            await k8sDeployment.Deploy();
+            await deployment.Deploy();
             AnsiConsole.MarkupLine("[bold green]Deployment completed![/]");
         }
         catch (Exception ex)

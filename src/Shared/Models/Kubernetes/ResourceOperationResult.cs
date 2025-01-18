@@ -1,4 +1,4 @@
-﻿namespace a2k.Shared.Models;
+﻿namespace a2k.Shared.Models.Kubernetes;
 
 public enum ResourceOperationResult
 {

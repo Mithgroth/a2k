@@ -1,5 +1,6 @@
 ﻿using a2k.Shared;
 using a2k.Shared.Models;
+using a2k.Shared.Models.Aspire;
 using Spectre.Console;
 using System.Text.Json;
 
@@ -7,7 +8,7 @@ namespace a2k.Cli.ManifestParsing;
 
 internal static class AspireSolutionExtensions
 {
-    internal static void CreateManifestIfNotExists(this AspireSolution aspireSolution)
+    internal static void CreateManifestIfNotExists(this Solution aspireSolution)
     {
         if (!File.Exists(aspireSolution.ManifestPath))
         {
@@ -17,14 +18,14 @@ internal static class AspireSolutionExtensions
         }
     }
 
-    internal static async Task ReadManifest(this AspireSolution aspireSolution)
+    internal static async Task ReadManifest(this Solution aspireSolution)
     {
         aspireSolution.CreateManifestIfNotExists();
 
         AnsiConsole.MarkupLine($"[yellow]Loading manifest from: {aspireSolution.ManifestPath}[/]");
         var json = await File.ReadAllTextAsync(aspireSolution.ManifestPath);
 
-        var manifest = JsonSerializer.Deserialize<AspireManifest>(json, Defaults.JsonSerializerOptions);
+        var manifest = JsonSerializer.Deserialize<Manifest>(json, Defaults.JsonSerializerOptions);
         if (manifest == null)
         {
             throw new ArgumentNullException(nameof(manifest), "Could not read AppHost's manifest.json!");
@@ -37,7 +38,7 @@ internal static class AspireSolutionExtensions
             var resourceType = resource.MapAspireResourceType();
             if (resourceType == AspireResourceType.Project)
             {
-                var project = new AspireProject(
+                var project = new Project(
                     aspireSolution.Name,
                     resourceName,
                     CsProjPath: Path.GetFullPath(Path.Combine(aspireSolution.AppHostPath, resource.Path)),
@@ -49,7 +50,7 @@ internal static class AspireSolutionExtensions
             }
             else if (resourceType == AspireResourceType.Container)
             {
-                var container = new AspireContainer(
+                var container = new Container(
                     aspireSolution.Name,
                     resourceName,
                     Dockerfile: resource switch

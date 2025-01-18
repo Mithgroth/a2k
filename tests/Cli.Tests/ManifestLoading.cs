@@ -1,21 +1,16 @@
-﻿using a2k.Shared.Models;
+﻿using a2k.Shared;
+using a2k.Shared.Models.Aspire;
 using System.Text.Json;
 
-namespace Manifest;
+namespace ManifestLoading;
 
-public class ManifestLoaderTests
+public class ManifestLoadingTests
 {
-    private readonly JsonSerializerOptions _jsonOptions;
     private readonly string TestManifestsPath = Path.Combine(AppContext.BaseDirectory, "TestManifests");
 
-    public ManifestLoaderTests()
+    public ManifestLoadingTests()
     {
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true
-        };
+
     }
 
     [Theory]
@@ -28,7 +23,7 @@ public class ManifestLoaderTests
         var json = File.ReadAllText(manifestPath);
 
         // Act
-        var manifest = JsonSerializer.Deserialize<AspireManifest>(json, _jsonOptions);
+        var manifest = JsonSerializer.Deserialize<Manifest>(json, Defaults.JsonSerializerOptions);
 
         // Assert
         Assert.NotNull(manifest);
@@ -45,7 +40,7 @@ public class ManifestLoaderTests
         // Act & Assert
         Assert.Throws<JsonException>(() =>
         {
-            JsonSerializer.Deserialize<AspireManifest>(json, _jsonOptions);
+            JsonSerializer.Deserialize<Manifest>(json, Defaults.JsonSerializerOptions);
         });
     }
 }

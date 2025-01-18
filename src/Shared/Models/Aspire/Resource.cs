@@ -1,8 +1,9 @@
-﻿using k8s.Models;
+﻿using a2k.Shared.Models.Kubernetes;
+using k8s.Models;
 
-namespace a2k.Shared.Models;
+namespace a2k.Shared.Models.Aspire;
 
-public abstract record AspireResource(string SolutionName,
+public abstract record Resource(string SolutionName,
                                       string ResourceName,
                                       Dockerfile? Dockerfile,
                                       Dictionary<string, ResourceBinding> Bindings,
@@ -89,11 +90,13 @@ public abstract record AspireResource(string SolutionName,
         resource.Spec = new V1ServiceSpec
         {
             Selector = Defaults.Labels(SolutionName, ResourceName),
-            Ports = [ new() { Port = port, TargetPort = port } ]
+            Ports = [new() { Port = port, TargetPort = port }]
         };
 
         return resource;
     }
+
+    public abstract Task<ResourceOperationResult> Deploy(k8s.Kubernetes k8s);
 }
 
 public enum AspireResourceType

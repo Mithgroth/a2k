@@ -2,12 +2,12 @@
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
-namespace a2k.Shared.Models;
+namespace a2k.Shared.Models.Aspire;
 
 /// <summary>
 /// Represents manifest.json output of dotnet run --publisher manifest --output-path manifest.json command on AppHost project
 /// </summary>
-public class AspireManifest
+public record Manifest
 {
     [JsonPropertyName("$schema")]
     public string? Schema { get; set; }

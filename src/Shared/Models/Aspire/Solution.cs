@@ -1,6 +1,6 @@
-﻿namespace a2k.Shared.Models;
+﻿namespace a2k.Shared.Models.Aspire;
 
-public sealed class AspireSolution
+public sealed record Solution
 {
     /// <summary>
     /// Represents .sln file name in a .NET Aspire solution, used as Application name in Kubernetes
@@ -18,11 +18,11 @@ public sealed class AspireSolution
     /// manifest.json path of the AppHost project
     /// </summary>
     public string ManifestPath { get; set; } = string.Empty;
-    public AspireManifest? Manifest { get; set; }
+    public Manifest? Manifest { get; set; }
 
-    public ICollection<AspireResource> Resources { get; set; } = [];
+    public ICollection<Resource> Resources { get; set; } = [];
 
-    public AspireSolution(string appHost, string? @namespace)
+    public Solution(string appHost, string? @namespace)
     {
         // TODO: Ensure it is a .NET Aspire solution
 

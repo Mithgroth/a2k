@@ -1,4 +1,4 @@
-﻿using a2k.Shared.Models;
+﻿using a2k.Shared.Models.Kubernetes;
 using k8s.Models;
 using System.Text.Json;
 
@@ -26,7 +26,7 @@ public static class Defaults
     public static V1Deployment V1Deployment(string applicationName, string resourceName) => new()
     {
         ApiVersion = "apps/v1",
-        Kind = KubernetesKinds.Deployment.ToString(),
+        Kind = Kinds.Deployment.ToString(),
         Metadata = new()
         {
             Name = resourceName,
@@ -37,7 +37,7 @@ public static class Defaults
     public static V1Service V1Service(string applicationName, string resourceName) => new()
     {
         ApiVersion = "v1",
-        Kind = KubernetesKinds.Service.ToString(),
+        Kind = Kinds.Service.ToString(),
         Metadata = new()
         {
             Name = $"{resourceName}-service",
