@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 
-namespace a2k.Cli;
+namespace a2k.Shared;
 
 public static class Shell
 {

@@ -37,31 +37,29 @@ internal static class AspireSolutionExtensions
             var resourceType = resource.MapAspireResourceType();
             if (resourceType == AspireResourceType.Project)
             {
-                var csProjPath = Path.GetFullPath(Path.Combine(aspireSolution.AppHostPath, resource.Path));
-                var projectName = Path.GetDirectoryName(csProjPath) ?? resourceName;
-
-                var project = new AspireProject(resourceName, csProjPath)
-                {
-                    Dockerfile = new Dockerfile($"{aspireSolution.Name.ToLowerInvariant()}-{projectName.ToLowerInvariant()}", "latest"),
-                    Bindings = resource.Bindings,
-                    Env = resource.Env,
-                };
+                var project = new AspireProject(
+                    aspireSolution.Name,
+                    resourceName,
+                    CsProjPath: Path.GetFullPath(Path.Combine(aspireSolution.AppHostPath, resource.Path)),
+                    new Dockerfile($"{aspireSolution.Name.ToLowerInvariant()}-{resourceName.ToLowerInvariant()}", "latest"),
+                    resource.Bindings,
+                    resource.Env);
 
                 aspireSolution.Resources.Add(project);
             }
             else if (resourceType == AspireResourceType.Container)
             {
-                var container = new AspireContainer(resourceName)
-                {
-                    Dockerfile = resource switch
+                var container = new AspireContainer(
+                    aspireSolution.Name,
+                    resourceName,
+                    Dockerfile: resource switch
                     {
                         var r when !string.IsNullOrEmpty(r.Image) => new Dockerfile(r.Image),
                         var r when r.Build != null => r.CreateDockerfile(aspireSolution.AppHostPath, resourceName),
                         _ => throw new ArgumentException(nameof(resourceName)),
                     },
-                    Bindings = resource.Bindings,
-                    Env = resource.Env,
-                };
+                    resource.Bindings,
+                    resource.Env);
 
                 aspireSolution.Resources.Add(container);
             }
@@ -88,6 +86,6 @@ internal static class AspireSolutionExtensions
         return new Dockerfile(resourceName,
             Context: context,
             Path: path,
-            ShouldBuildWithDocker: false);
+            ShouldBuildWithDocker: true);
     }
 }

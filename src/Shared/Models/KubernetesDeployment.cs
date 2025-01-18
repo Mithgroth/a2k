@@ -7,8 +7,7 @@ namespace a2k.Shared.Models;
 public class KubernetesDeployment(AspireSolution AspireSolution)
 {
     private readonly Kubernetes k8s = new(KubernetesClientConfiguration.BuildConfigFromConfigFile());
-
-    public Dictionary<string, string> CommonLabels { get; set; } = new Dictionary<string, string>
+    private Dictionary<string, string> CommonLabels { get; set; } = new Dictionary<string, string>
         {
             { "app.kubernetes.io/name", AspireSolution.Name },
             { "app.kubernetes.io/managed-by", "a2k" }
@@ -52,20 +51,20 @@ public class KubernetesDeployment(AspireSolution AspireSolution)
         {
             switch (resource)
             {
-                case AspireContainer container when resource.Type == AspireResourceType.Container:
+                case AspireContainer container when resource.ResourceType == AspireResourceType.Container:
                     await DeployContainerResource(container);
                     break;
 
-                case AspireProject project when resource.Type == AspireResourceType.Project:
+                case AspireProject project when resource.ResourceType == AspireResourceType.Project:
                     await DeployProjectResource(project);
                     break;
 
-                case var parameter when resource.Type == AspireResourceType.Parameter:
+                case var parameter when resource.ResourceType == AspireResourceType.Parameter:
                     //await HandleParameterResource(resource.Name, resource, k8sNamespace);
                     break;
 
                 default:
-                    Console.WriteLine($"[WARN] Resource '{resource.Name}' has unsupported type '{resource.Type}'. Skipping.");
+                    Console.WriteLine($"[WARN] Resource '{resource.ResourceName}' has unsupported type '{resource.ResourceType}'. Skipping.");
                     break;
             };
         }
@@ -73,21 +72,41 @@ public class KubernetesDeployment(AspireSolution AspireSolution)
 
     private async Task DeployContainerResource(AspireContainer container)
     {
-        AnsiConsole.MarkupLine($"[bold gray]Deploying container resource: {container.Name}[/]");
+        AnsiConsole.MarkupLine($"[bold gray]Deploying container resource: {container.ResourceName}[/]");
 
-        var deployment = CreateBasicDeployment(
-            container.Name,
-            container.Env,
-            container.Bindings,
-            $"{container.Dockerfile.Name}:{container.Dockerfile.Tag}",
-            AspireSolution.Name
-        );
+        if (container.Dockerfile?.ShouldBuildWithDocker == true)
+        {
+            var buildCommand = $"docker build -t {container.Dockerfile.Name}";
+            if (!string.IsNullOrEmpty(container.Dockerfile?.Path))
+            {
+                buildCommand += $" -f {container.Dockerfile.Path}";
+            }
 
-        var service = CreateBasicService(
-            container.Name,
-            container.Bindings,
-            AspireSolution.Name
-        );
+            if (!string.IsNullOrEmpty(container.Dockerfile?.Context))
+            {
+                buildCommand += $" {container.Dockerfile.Context}";
+            }
+
+            Shell.Run(buildCommand);
+        }
+
+        //var deployment = CreateBasicDeployment(
+        //    container.Name,
+        //    container.Env,
+        //    container.Bindings,
+        //    $"{container.Dockerfile.Name}:{container.Dockerfile.Tag}",
+        //    container.Dockerfile?.ShouldBuildWithDocker == true ? "Never" : "IfNotPresent"
+        //);
+
+        //var deployment = CreateBasicDeployment(container);
+        var deployment = container.ToKubernetesDeployment();
+        var service = container.ToKubernetesService();
+
+        //var service = CreateBasicService(
+        //    container.Name,
+        //    container.Bindings,
+        //    AspireSolution.Name
+        //);
 
         // Create or replace (for brevity, we’ll just create)
         try
@@ -111,21 +130,24 @@ public class KubernetesDeployment(AspireSolution AspireSolution)
 
     private async Task DeployProjectResource(AspireProject project)
     {
-        AnsiConsole.MarkupLine($"[bold gray]Deploying project resource: {project.Name}[/]");
+        project.PublishContainer();
 
-        var deployment = CreateBasicDeployment(
-            project.Name,
-            project.Env,
-            project.Bindings,
-            $"{project.Dockerfile.Name}:{project.Dockerfile.Tag}",
-            AspireSolution.Name
-        );
+        var deployment = project.ToKubernetesDeployment();
+        var service = project.ToKubernetesService();
 
-        var service = CreateBasicService(
-            project.Name,
-            project.Bindings,
-            AspireSolution.Name
-        );
+        //var deployment = CreateBasicDeployment(
+        //    project.Name,
+        //    project.Env,
+        //    project.Bindings,
+        //    $"{project.Dockerfile.Name}:{project.Dockerfile.Tag}",
+        //    project.Dockerfile?.ShouldBuildWithDocker == true ? "Never" : "IfNotPresent"
+        //);
+
+        //var service = CreateBasicService(
+        //    project.Name,
+        //    project.Bindings,
+        //    AspireSolution.Name
+        //);
 
         // Create or replace
         try
@@ -191,138 +213,217 @@ public class KubernetesDeployment(AspireSolution AspireSolution)
         }
     }
 
-    private V1Deployment CreateBasicDeployment(
-        string name,
-        Dictionary<string, string> envVars,
-        Dictionary<string, ResourceBinding> bindings,
-        string image,
-        string applicationName)
-    {
-        // Figure out a port from the "bindings" if present
-        // For a simple example, pick the first binding that has a targetPort.
-        var port = 80; // default
-        if (bindings != null)
-        {
-            foreach (var b in bindings.Values)
-            {
-                if (b.TargetPort.HasValue)
-                {
-                    port = b.TargetPort.Value;
-                    break;
-                }
-            }
-        }
+    //private V1Deployment CreateBasicDeployment(AspireResource resource)
+    //{
+    //    // Figure out a port from the "bindings" if present
+    //    // For a simple example, pick the first binding that has a targetPort.
+    //    var port = 80; // default
+    //    if (resource.Bindings != null)
+    //    {
+    //        foreach (var b in resource.Bindings.Values)
+    //        {
+    //            if (b.TargetPort.HasValue)
+    //            {
+    //                port = b.TargetPort.Value;
+    //                break;
+    //            }
+    //        }
+    //    }
 
-        // Convert env dict to list
-        var containerEnv = new List<V1EnvVar>();
-        if (envVars != null)
-        {
-            foreach (var (key, value) in envVars)
-            {
-                containerEnv.Add(new V1EnvVar(key, value));
-            }
-        }
+    //    // Convert env dict to list
+    //    var containerEnv = new List<V1EnvVar>();
+    //    if (resource.Env != null)
+    //    {
+    //        foreach (var (key, value) in resource.Env)
+    //        {
+    //            containerEnv.Add(new V1EnvVar(key, value));
+    //        }
+    //    }
 
-        var labels = new Dictionary<string, string>
-        {
-            { "app", name },
-            { "app.kubernetes.io/name", applicationName },
-            { "app.kubernetes.io/managed-by", "a2k" },
-            { "app.kubernetes.io/component", name }
-        };
+    //    var labels = new Dictionary<string, string>
+    //    {
+    //        { "app", resource.Name },
+    //        { "app.kubernetes.io/name", AspireSolution.Name },
+    //        { "app.kubernetes.io/managed-by", "a2k" },
+    //        { "app.kubernetes.io/component", resource.Name }
+    //    };
 
-        // Build the K8s Deployment
-        return new V1Deployment
-        {
-            ApiVersion = "apps/v1",
-            Kind = "Deployment",
-            Metadata = new V1ObjectMeta
-            {
-                Name = name,
-                Labels = labels
-            },
-            Spec = new V1DeploymentSpec
-            {
-                Replicas = 1,
-                Selector = new V1LabelSelector
-                {
-                    MatchLabels = labels
-                },
-                Template = new V1PodTemplateSpec
-                {
-                    Metadata = new V1ObjectMeta
-                    {
-                        Labels = labels
-                    },
-                    Spec = new V1PodSpec
-                    {
-                        Containers =
-                        [
-                            new() {
-                                Name = name,
-                                Image = image,
-                                ImagePullPolicy = "Never",
-                                Ports =
-                                [
-                                    new(port)
-                                ],
-                                Env = containerEnv
-                            }
-                        ]
-                    }
-                }
-            }
-        };
-    }
+    //    // Build the K8s Deployment
+    //    return new V1Deployment
+    //    {
+    //        ApiVersion = "apps/v1",
+    //        Kind = "Deployment",
+    //        Metadata = new V1ObjectMeta
+    //        {
+    //            Name = resource.Name,
+    //            Labels = labels
+    //        },
+    //        Spec = new V1DeploymentSpec
+    //        {
+    //            Replicas = 1,
+    //            Selector = new V1LabelSelector
+    //            {
+    //                MatchLabels = labels
+    //            },
+    //            Template = new V1PodTemplateSpec
+    //            {
+    //                Metadata = new V1ObjectMeta
+    //                {
+    //                    Labels = labels
+    //                },
+    //                Spec = new V1PodSpec
+    //                {
+    //                    Containers =
+    //                    [
+    //                        new() {
+    //                            Name = resource.Name,
+    //                            Image = $"{resource.Dockerfile.Name}:{resource.Dockerfile.Tag}",
+    //                            ImagePullPolicy = resource.Dockerfile?.ShouldBuildWithDocker == true ? "Never" : "IfNotPresent",
+    //                            Ports =
+    //                            [
+    //                                new(port)
+    //                            ],
+    //                            Env = containerEnv
+    //                        }
+    //                    ]
+    //                }
+    //            }
+    //        }
+    //    };
+    //}
 
-    private V1Service CreateBasicService(
-        string name,
-        Dictionary<string, ResourceBinding> bindings,
-        string applicationName)
-    {
-        // Identify at least one port to expose
-        var port = 80; // default
-        if (bindings != null)
-        {
-            foreach (var b in bindings.Values)
-            {
-                if (b.TargetPort.HasValue)
-                {
-                    port = b.TargetPort.Value;
-                    break;
-                }
-            }
-        }
+    //private V1Deployment CreateBasicDeployment(
+    //    string name,
+    //    Dictionary<string, string> envVars,
+    //    Dictionary<string, ResourceBinding> bindings,
+    //    string image,
+    //    string imagePullPolicy = "Never")
+    //{
+    //    // Figure out a port from the "bindings" if present
+    //    // For a simple example, pick the first binding that has a targetPort.
+    //    var port = 80; // default
+    //    if (bindings != null)
+    //    {
+    //        foreach (var b in bindings.Values)
+    //        {
+    //            if (b.TargetPort.HasValue)
+    //            {
+    //                port = b.TargetPort.Value;
+    //                break;
+    //            }
+    //        }
+    //    }
 
-        var labels = new Dictionary<string, string>
-        {
-            { "app", name },
-            { "app.kubernetes.io/name", applicationName },
-            { "app.kubernetes.io/managed-by", "a2k" },
-            { "app.kubernetes.io/component", name }
-        };
+    //    // Convert env dict to list
+    //    var containerEnv = new List<V1EnvVar>();
+    //    if (envVars != null)
+    //    {
+    //        foreach (var (key, value) in envVars)
+    //        {
+    //            containerEnv.Add(new V1EnvVar(key, value));
+    //        }
+    //    }
 
-        return new V1Service
-        {
-            ApiVersion = "v1",
-            Kind = "Service",
-            Metadata = new V1ObjectMeta
-            {
-                Name = $"{name}-service",
-                Labels = labels
-            },
-            Spec = new V1ServiceSpec
-            {
-                Selector = labels,
-                Ports =
-                [
-                    new()
-                    {
-                        Port = port,
-                        TargetPort = port
-                    }
-                ]
-            }
-        };
-    }
+    //    var labels = new Dictionary<string, string>
+    //    {
+    //        { "app", name },
+    //        { "app.kubernetes.io/name", AspireSolution.Name },
+    //        { "app.kubernetes.io/managed-by", "a2k" },
+    //        { "app.kubernetes.io/component", name }
+    //    };
+
+    //    // Build the K8s Deployment
+    //    return new V1Deployment
+    //    {
+    //        ApiVersion = "apps/v1",
+    //        Kind = "Deployment",
+    //        Metadata = new V1ObjectMeta
+    //        {
+    //            Name = name,
+    //            Labels = labels
+    //        },
+    //        Spec = new V1DeploymentSpec
+    //        {
+    //            Replicas = 1,
+    //            Selector = new V1LabelSelector
+    //            {
+    //                MatchLabels = labels
+    //            },
+    //            Template = new V1PodTemplateSpec
+    //            {
+    //                Metadata = new V1ObjectMeta
+    //                {
+    //                    Labels = labels
+    //                },
+    //                Spec = new V1PodSpec
+    //                {
+    //                    Containers =
+    //                    [
+    //                        new() {
+    //                            Name = name,
+    //                            Image = image,
+    //                            ImagePullPolicy = imagePullPolicy,
+    //                            Ports =
+    //                            [
+    //                                new(port)
+    //                            ],
+    //                            Env = containerEnv
+    //                        }
+    //                    ]
+    //                }
+    //            }
+    //        }
+    //    };
+    //}
+
+    //private V1Service CreateBasicService(
+    //    string name,
+    //    Dictionary<string, ResourceBinding> bindings,
+    //    string applicationName)
+    //{
+    //    // Identify at least one port to expose
+    //    var port = 80; // default
+    //    if (bindings != null)
+    //    {
+    //        foreach (var b in bindings.Values)
+    //        {
+    //            if (b.TargetPort.HasValue)
+    //            {
+    //                port = b.TargetPort.Value;
+    //                break;
+    //            }
+    //        }
+    //    }
+
+    //    var labels = new Dictionary<string, string>
+    //    {
+    //        { "app", name },
+    //        { "app.kubernetes.io/name", applicationName },
+    //        { "app.kubernetes.io/managed-by", "a2k" },
+    //        { "app.kubernetes.io/component", name }
+    //    };
+
+    //    return new V1Service
+    //    {
+    //        ApiVersion = "v1",
+    //        Kind = "Service",
+    //        Metadata = new V1ObjectMeta
+    //        {
+    //            Name = $"{name}-service",
+    //            Labels = labels
+    //        },
+    //        Spec = new V1ServiceSpec
+    //        {
+    //            Selector = labels,
+    //            Ports =
+    //            [
+    //                new()
+    //                {
+    //                    Port = port,
+    //                    TargetPort = port
+    //                }
+    //            ]
+    //        }
+    //    };
+    //}
 }

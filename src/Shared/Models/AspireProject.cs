@@ -1,18 +1,22 @@
-﻿namespace a2k.Shared.Models;
+﻿using Spectre.Console;
+
+namespace a2k.Shared.Models;
 
 /// <summary>
 /// Represents a .NET project in Aspire environment
 /// </summary>
-public class AspireProject : AspireResource
+public record AspireProject(string SolutionName,
+                            string ResourceName,
+                            string CsProjPath,
+                            Dockerfile? Dockerfile,
+                            Dictionary<string, ResourceBinding> Bindings,
+                            Dictionary<string, string> Env) 
+    : AspireResource(SolutionName, ResourceName, Dockerfile, Bindings, Env, AspireResourceType.Project)
 {
-    public AspireProject(string name, string csProjPath) : base(name)
+    public void PublishContainer()
     {
-        Type = AspireResourceType.Project;
-        CsProjPath = csProjPath;
+        AnsiConsole.MarkupLine($"[bold gray]Building .NET project {ResourceName}...[/]");
+        Shell.Run($"dotnet publish {Directory.GetParent(CsProjPath)} -c Release --verbosity quiet --os linux /t:PublishContainer /p:ContainerRepository={Dockerfile.Name.Replace(":latest", "")}");
+        AnsiConsole.MarkupLine($"[bold green]Published Docker image for {ResourceName} as {Dockerfile.Name.Replace(":latest", "")}[/]");
     }
-
-    public string CsProjPath { get; set; }
-    public Dockerfile? Dockerfile { get; set; }
-    public Dictionary<string, ResourceBinding> Bindings { get; set; }
-    public Dictionary<string, string> Env { get; set; }
 }
