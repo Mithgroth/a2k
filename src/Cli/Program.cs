@@ -22,10 +22,7 @@ public class Program
         var solution = new Solution(appHost, @namespace);
         await solution.ReadManifest();
 
-        try
-        {
-            AnsiConsole.MarkupLine("[blue]Logging in to [bold]Docker...[/][/]");
-            Shell.Run("docker login");
+        DockerLogin();
 
             await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Star)
@@ -34,16 +31,24 @@ public class Program
                     {
                         var k8s = new Kubernetes(KubernetesClientConfiguration.BuildConfigFromConfigFile());
                         var namespaceResult = await solution.CheckNamespace(k8s);
-                        AnsiConsole.MarkupLine($"[bold {Helpers.PickColourForResult(namespaceResult)}]Checking namespace: {namespaceResult}[/]");
+                    AnsiConsole.MarkupLine($"[bold {Helpers.PickColourForResult(namespaceResult)}]Checking {@namespace} namespace: {namespaceResult}[/]");
 
                         await Task.WhenAll(solution.Resources.Select(resource => resource.Deploy(k8s)));
                     });
 
             AnsiConsole.MarkupLine("[bold green]:thumbs_up: Deployment completed![/]");
-        }
-        catch (Exception ex)
+
+        static void DockerLogin()
         {
-            AnsiConsole.MarkupLine($"[bold red]ERROR: {ex.Message}[/]");
+            var output = Shell.Run("docker login", writeToOutput: false);
+            var panel = new Panel(output)
+            {
+                Header = new("[bold navy]Docker Login[/]")
+        }
+            .DoubleBorder()
+            .BorderColor(Color.NavyBlue);
+
+            AnsiConsole.Write(panel);
         }
     }
 }

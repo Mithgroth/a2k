@@ -1,10 +1,11 @@
-﻿using System.Diagnostics;
+﻿using Spectre.Console;
+using System.Diagnostics;
 
 namespace a2k.Shared;
 
 public static class Shell
 {
-    public static void Run(string command, string? workingDirectory = null, bool throwOnError = true)
+    public static string Run(string command, string? workingDirectory = null, bool writeToOutput = true, bool throwOnError = true)
     {
         if (string.IsNullOrEmpty(command))
         {
@@ -32,11 +33,16 @@ public static class Shell
         var stderr = process.StandardError.ReadToEnd();
         process.WaitForExit();
 
-        Console.WriteLine(stdout);
+        if (writeToOutput)
+        {
+            AnsiConsole.MarkupLine($"[bold]{Markup.Escape(stdout)}[/]");
+        }
 
         if (process.ExitCode != 0 && throwOnError)
         {
             throw new Exception($"Command failed: {stderr}");
         }
+
+        return stdout;
     }
 }
