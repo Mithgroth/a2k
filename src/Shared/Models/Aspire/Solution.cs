@@ -25,9 +25,11 @@ public sealed record Solution
     public string ManifestPath { get; set; } = string.Empty;
     public Manifest? Manifest { get; set; }
 
+    public string Tag { get; set; } = "latest";
+
     public List<Resource> Resources { get; set; } = [];
 
-    public Solution(string appHost, string? @namespace)
+    public Solution(string appHost, string? @namespace, bool useVersioning = false)
     {
         // TODO: Ensure it is a .NET Aspire solution
 
@@ -38,6 +40,15 @@ public sealed record Solution
         if (!string.IsNullOrEmpty(@namespace))
         {
             Namespace = @namespace;
+        }
+
+        if (useVersioning)
+        {
+            var now = DateTime.UtcNow;
+            var year = now.Year.ToString().Substring(2, 2); // Get last 2 digits of year
+            var dayOfYear = now.DayOfYear.ToString("D3"); // 3 digits, zero-padded
+            var time = now.ToString("HHmmss"); // 24-hour format
+            Tag = $"{year}{dayOfYear}{time}";
         }
     }
 
@@ -54,19 +65,7 @@ public sealed record Solution
     public async Task<ResourceOperationResult> ReadManifest()
     {
         CreateManifestIfNotExists();
-
-        var path = new TextPath(ManifestPath)
-            .RootColor(Color.Wheat4)
-            .SeparatorColor(Color.White)
-            .StemColor(Color.Wheat4)
-            .LeafColor(Color.Yellow);
-
-        var panel = new Panel(path)
-        {
-            Header = new("Loading manifest from")
-        };
-
-        AnsiConsole.Write(panel);
+        WriteToPanel();
 
         var json = await File.ReadAllTextAsync(ManifestPath);
 
@@ -107,7 +106,7 @@ public sealed record Solution
                                    Name,
                                    resourceName,
                                    CsProjPath: Path.GetFullPath(Path.Combine(AppHostPath, manifestResource.Path)),
-                                   new Dockerfile($"{Name.ToLowerInvariant()}-{resourceName.ToLowerInvariant()}", "latest"),
+                                   new Dockerfile($"{Name.ToLowerInvariant()}-{resourceName.ToLowerInvariant()}", Tag),
                                    manifestResource.Bindings,
                                    manifestResource.Env),
                 var rt when rt.Contains("container", StringComparison.OrdinalIgnoreCase)
@@ -138,9 +137,26 @@ public sealed record Solution
             var path = Path.Combine(appHostPath, r.Build.Dockerfile.Replace("/", "\\") ?? "Dockerfile");
 
             return new Dockerfile(resourceName,
-                Context: context,
-                Path: path,
-                ShouldBuildWithDocker: true);
+                                  Tag: Tag,
+                                  Context: context,
+                                  Path: path,
+                                  ShouldBuildWithDocker: true);
+        }
+
+        void WriteToPanel()
+        {
+            var path = new TextPath(ManifestPath)
+                .RootColor(Color.Wheat4)
+                .SeparatorColor(Color.White)
+                .StemColor(Color.Wheat4)
+                .LeafColor(Color.Yellow);
+
+            var panel = new Panel(path)
+            {
+                Header = new("Loading manifest from")
+            };
+
+            AnsiConsole.Write(panel);
         }
     }
 

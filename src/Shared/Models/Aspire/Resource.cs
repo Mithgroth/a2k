@@ -1,15 +1,58 @@
 ﻿using a2k.Shared.Models.Kubernetes;
 using k8s.Models;
+using Spectre.Console;
 
 namespace a2k.Shared.Models.Aspire;
 
 public abstract record Resource(string SolutionName,
                                 string ResourceName,
-                                Dockerfile? Dockerfile,
                                 Dictionary<string, ResourceBinding>? Bindings,
                                 Dictionary<string, string>? Env,
                                 AspireResourceType ResourceType = AspireResourceType.Unknown)
 {
+    public Dockerfile? Dockerfile { get; set; }
+
+    protected Resource(string solutionName,
+                    string resourceName,
+                    Dockerfile? dockerfile,
+                    Dictionary<string, ResourceBinding>? bindings,
+                    Dictionary<string, string>? env,
+                    AspireResourceType resourceType)
+        : this(solutionName, resourceName, bindings, env, resourceType)
+    {
+        Dockerfile = dockerfile;
+    }
+
+    protected void CleanupOldImages()
+    {
+        if (Dockerfile?.SHA256 == null || !Dockerfile.ShouldBuildWithDocker)
+        {
+            return;
+        }
+
+        // Find all images with the same name but different SHA256
+        var images = Shell.Run($"docker images {Dockerfile.Name} --quiet --no-trunc")
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var image in images)
+        {
+            var sha = image.Replace("sha256:", "").Trim('\'', '"').Trim();
+            if (sha != Dockerfile.SHA256)
+            {
+                try
+                {
+                    Shell.Run($"docker rmi {sha} --force");
+                    AnsiConsole.MarkupLine($"[gray]Removed old image {sha} for {ResourceName}[/]");
+                }
+                catch
+                {
+                    // Ignore errors during cleanup
+                    AnsiConsole.MarkupLine($"[yellow]Could not remove old image {sha} for {ResourceName}[/]");
+                }
+            }
+        }
+    }
+
     public V1Deployment ToKubernetesDeployment()
     {
         // Figure out a port from the "bindings" if present
@@ -47,14 +90,19 @@ public abstract record Resource(string SolutionName,
                 Metadata = new V1ObjectMeta
                 {
                     Labels = Defaults.Labels(SolutionName, ResourceName),
+                    Annotations = new Dictionary<string, string>
+                    {
+                        ["a2k.version"] = Dockerfile?.Tag
+                    }
                 },
                 Spec = new V1PodSpec
                 {
                     Containers =
                         [
-                            new() {
+                            new() 
+                            {
                                 Name = ResourceName,
-                                Image = $"{Dockerfile.Name}:{Dockerfile.Tag}",
+                                Image = Dockerfile?.FullImageName,
                                 ImagePullPolicy = Dockerfile?.ShouldBuildWithDocker == true ? "Never" : "IfNotPresent",
                                 Ports =
                                 [

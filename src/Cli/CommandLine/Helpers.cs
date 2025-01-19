@@ -27,10 +27,15 @@ internal static class Helpers
             description: "The Kubernetes namespace to deploy to",
             getDefaultValue: () => string.Empty);
 
-        return [appHostOption, namespaceOption];
+        var versioningOption = new Option<bool>(
+            "--useVersions",
+            description: "Use versioning while deploying to Kubernetes and Docker, if this is false a2k only uses latest tag",
+            getDefaultValue: () => false);
+
+        return [appHostOption, namespaceOption, versioningOption];
     }
 
-    internal static RootCommand WireUp<T1, T2>(Func<T1, T2, Task> handler)
+    internal static RootCommand WireUp<T1, T2, T3>(Func<T1, T2, T3, Task> handler)
     {
         var options = ConfigureOptions();
 
@@ -39,7 +44,8 @@ internal static class Helpers
         {
             // TODO: Find a better way to wire this up
             options[0],
-            options[1]
+            options[1],
+            options[2],
         };
 
         rootCommand.Description = "a2k CLI: Deploy Aspire projects to Kubernetes";

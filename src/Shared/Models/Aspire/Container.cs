@@ -32,19 +32,22 @@ public record Container(string Namespace,
                 buildCommand += $" {Dockerfile.Context}";
             }
             Shell.Run(buildCommand);
+
+            // Get the SHA256 of the built image
+            var sha256 = Shell.Run($"docker inspect --format={{{{.Id}}}} {Dockerfile.Name}").Replace("sha256:", "").Trim();
+            Dockerfile = Dockerfile.UpdateSHA256(sha256);
         }
 
         var deployment = ToKubernetesDeployment();
         var service = ToKubernetesService();
 
-        // Create or replace (for brevity, we’ll just create)
         try
         {
             await k8s.CreateNamespacedDeploymentAsync(deployment, Namespace);
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[bold yellow]Deployment for {ResourceName} already exists or creation failed. You may want to implement patch/replace logic.[/]");
+            AnsiConsole.MarkupLine($"[bold red]Error deploying {ResourceName}: {ex.Message}[/]");
         }
 
         try
@@ -53,9 +56,10 @@ public record Container(string Namespace,
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[bold yellow]Service for {ResourceName} already exists or creation failed. You may want to implement patch/replace logic.[/]");
+            AnsiConsole.MarkupLine($"[bold red]Error deploying {ResourceName} service: {ex.Message}[/]");
         }
 
+        CleanupOldImages();
         return ResourceOperationResult.Created;
     }
 }

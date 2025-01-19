@@ -3,7 +3,8 @@
     "a2k.Cli": {
       "commandName": "Project",
       "commandLineArgs": "--namespace a2k",
-      "workingDirectory": "H:\\a2k\\tests\\AspireApp1\\AspireApp1.AppHost"
+      "workingDirectory": "H:\\a2k\\tests\\AspireApp1\\AspireApp1.AppHost",
+      "useVersions": false
     }
   }
 }
