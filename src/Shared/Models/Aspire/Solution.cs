@@ -71,9 +71,22 @@ public sealed record Solution
         var json = await File.ReadAllTextAsync(ManifestPath);
 
         var manifest = JsonSerializer.Deserialize<Manifest>(json, Defaults.JsonSerializerOptions);
-        if (manifest == null)
+        if (manifest is null)
         {
-            throw new ArgumentNullException(nameof(manifest), "Could not read AppHost's manifest.json!");
+            AnsiConsole.MarkupLine($"[red]Could not read manifest.json file at {ManifestPath}, make sure the file is a proper .NET Aspire manifest file.[/]");
+            return ResourceOperationResult.Missing;
+        }
+
+        if (manifest?.Schema != Defaults.ASPIRE_SCHEMA)
+        {
+            AnsiConsole.MarkupLine($"[red]Incorrect/missing $schema entry in manifest.json file at {ManifestPath}, .NET Aspire manifests are supposed to have \"$schema\":\"{Defaults.ASPIRE_SCHEMA}\" entry in manifest.[/]");
+            return ResourceOperationResult.Failed;
+        }
+
+        if (manifest?.Resources.Count == 0)
+        {
+            AnsiConsole.MarkupLine($"[red]Could not find any resources in manifest.json file at {ManifestPath}.[/]");
+            return ResourceOperationResult.Failed;
         }
 
         Manifest = manifest;
@@ -93,7 +106,7 @@ public sealed record Solution
                     => new Project(Namespace,
                                    Name,
                                    resourceName,
-                                   CsProjPath: Path.GetFullPath(Path.Combine(   AppHostPath, manifestResource.Path)),
+                                   CsProjPath: Path.GetFullPath(Path.Combine(AppHostPath, manifestResource.Path)),
                                    new Dockerfile($"{Name.ToLowerInvariant()}-{resourceName.ToLowerInvariant()}", "latest"),
                                    manifestResource.Bindings,
                                    manifestResource.Env),

@@ -1,5 +1,6 @@
 ﻿using a2k.Shared;
 using a2k.Shared.Models.Aspire;
+using a2k.Shared.Models.Kubernetes;
 using System.Text.Json;
 
 namespace ManifestLoading;
@@ -14,24 +15,30 @@ public class Test
     }
 
     [Theory]
-    [InlineData("valid-manifest.json", 2)]
-    [InlineData("missing-resource.json", 0)]
-    public void LoadManifest_ShouldHandleVariousManifests(string fileName, int expectedResourceCount)
+    [InlineData("valid-manifest.json", 2, ResourceOperationResult.Succeeded)]
+    [InlineData("missing-resource.json", 0, ResourceOperationResult.Failed)]
+    // TODO: Add .Missing case test
+    public async Task LoadManifests(string fileName,
+                                    int expectedResourceCount,
+                                    ResourceOperationResult expectedResult)
     {
         // Arrange
         var manifestPath = Path.Combine(TestManifestsPath, fileName);
-        var json = File.ReadAllText(manifestPath);
+        var solution = new Solution("test", "test")
+        {
+            ManifestPath = manifestPath
+        };
 
         // Act
-        var manifest = JsonSerializer.Deserialize<Manifest>(json, Defaults.JsonSerializerOptions);
+        var result = await solution.ReadManifest();
 
         // Assert
-        Assert.NotNull(manifest);
-        Assert.Equal(expectedResourceCount, manifest.Resources.Count);
+        Assert.Equal(expectedResourceCount, solution.Resources.Count);
+        Assert.Equal(expectedResult, result);
     }
 
     [Fact]
-    public void LoadManifest_ShouldFailForInvalidManifest()
+    public void FailInvalidManifest()
     {
         // Arrange
         var manifestPath = Path.Combine("TestManifests", "invalid-manifest.json");

@@ -6,6 +6,8 @@ namespace a2k.Shared;
 
 public static class Defaults
 {
+    public const string ASPIRE_SCHEMA = "https://json.schemastore.org/aspire-8.0.json";
+
     public static JsonSerializerOptions JsonSerializerOptions { get; set; } = new JsonSerializerOptions
     {
         AllowTrailingCommas = true,
