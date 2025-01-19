@@ -1,27 +1,28 @@
 ﻿using a2k.Shared;
 using k8s;
 
-namespace E2E;
+namespace k8sDeployment;
 
-public class k8sDeployment : IDisposable
+public class Test : IDisposable
 {
     private readonly string TestNamespace = "e2e-tests";
-    private readonly string AspireProjectPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "tests", "AspireApp1", "AspireApp1.AppHost");
     private readonly string CliProjectPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "bin", "a2k.Cli", "debug", "a2k.Cli.exe");
     private readonly Kubernetes _kubernetes;
 
-    public k8sDeployment()
+    public Test()
     {
         var config = KubernetesClientConfiguration.BuildConfigFromConfigFile();
         _kubernetes = new Kubernetes(config);
     }
 
-    [Fact]
-    public async Task A2KCli_ShouldDeployAspireApp1Successfully()
+    [Theory]
+    [InlineData("AspireApp1")]
+    public async Task DeployAspireApps(string appName)
     {
         // Arrange
+        var aspireProjectPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "tests", appName, $"{appName}.AppHost");
         var cliExecutablePath = Path.GetFullPath(CliProjectPath);
-        var appHostPath = Path.GetFullPath(AspireProjectPath);
+        var appHostPath = Path.GetFullPath(aspireProjectPath);
 
         if (!File.Exists(cliExecutablePath))
         {
@@ -33,10 +34,9 @@ public class k8sDeployment : IDisposable
             throw new Exception($"AppHost path not found: {appHostPath}");
         }
 
+        // Act
         Shell.Run($"{cliExecutablePath} --namespace {TestNamespace}", workingDirectory: appHostPath);
-
-        Console.WriteLine("[INFO] Verifying deployment...");
-        await WaitForPodsReady(TestNamespace);
+        await WaitForPodsReady();
 
         // Assert
         var pods = await _kubernetes.ListNamespacedPodAsync(TestNamespace);
@@ -44,14 +44,14 @@ public class k8sDeployment : IDisposable
         Assert.All(pods.Items, pod => Assert.Equal("Running", pod.Status.Phase));
     }
 
-    private async Task WaitForPodsReady(string ns)
+    private async Task WaitForPodsReady()
     {
         const int maxRetries = 10;
         var retries = 0;
 
         while (retries < maxRetries)
         {
-            var pods = await _kubernetes.ListNamespacedPodAsync(ns);
+            var pods = await _kubernetes.ListNamespacedPodAsync(TestNamespace);
             if (pods.Items.All(pod => pod.Status.Phase == "Running"))
             {
                 return;
@@ -61,15 +61,8 @@ public class k8sDeployment : IDisposable
             await Task.Delay(5000);
         }
 
-        throw new Exception($"Pods in namespace {ns} did not become ready in time.");
+        throw new Exception($"Pods in namespace {TestNamespace} did not become ready in time.");
     }
-
-    //[Fact]
-    //public async Task CleanupTestNamespace()
-    //{
-    //    Console.WriteLine($"[INFO] Cleaning up namespace: {TestNamespace}");
-    //    await _kubernetes.DeleteNamespaceAsync(TestNamespace);
-    //}
 
     public void Dispose()
     {
