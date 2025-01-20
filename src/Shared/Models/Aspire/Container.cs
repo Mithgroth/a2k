@@ -46,6 +46,7 @@ public record Container(Solution Solution,
                 {
                     buildCommand += $" {Dockerfile.Context}";
                 }
+
                 Shell.Run(buildCommand);
 
                 // Get the SHA256 of the built image
