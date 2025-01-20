@@ -1,6 +1,5 @@
 ﻿using a2k.Shared.Models.Kubernetes;
 using k8s.Models;
-using Spectre.Console;
 
 namespace a2k.Shared.Models.Aspire;
 
@@ -21,36 +20,6 @@ public abstract record Resource(string SolutionName,
         : this(solutionName, resourceName, bindings, env, resourceType)
     {
         Dockerfile = dockerfile;
-    }
-
-    protected void CleanupOldImages()
-    {
-        if (Dockerfile?.SHA256 == null || !Dockerfile.ShouldBuildWithDocker)
-        {
-            return;
-        }
-
-        // Find all images with the same name but different SHA256
-        var images = Shell.Run($"docker images {Dockerfile.Name} --quiet --no-trunc")
-            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var image in images)
-        {
-            var sha = image.Replace("sha256:", "").Trim('\'', '"').Trim();
-            if (sha != Dockerfile.SHA256)
-            {
-                try
-                {
-                    Shell.Run($"docker rmi {sha} --force");
-                    AnsiConsole.MarkupLine($"[gray]Removed old image {sha} for {ResourceName}[/]");
-                }
-                catch
-                {
-                    // Ignore errors during cleanup
-                    AnsiConsole.MarkupLine($"[yellow]Could not remove old image {sha} for {ResourceName}[/]");
-                }
-            }
-        }
     }
 
     public V1Deployment ToKubernetesDeployment()
@@ -92,14 +61,14 @@ public abstract record Resource(string SolutionName,
                     Labels = Defaults.Labels(SolutionName, ResourceName),
                     Annotations = new Dictionary<string, string>
                     {
-                        ["a2k.version"] = Dockerfile?.Tag
+                        ["createdAt"] = DateTime.UtcNow.ToString("o")
                     }
                 },
                 Spec = new V1PodSpec
                 {
                     Containers =
                         [
-                            new() 
+                            new()
                             {
                                 Name = ResourceName,
                                 Image = Dockerfile?.FullImageName,

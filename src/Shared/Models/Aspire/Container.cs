@@ -10,6 +10,7 @@ namespace a2k.Shared.Models.Aspire;
 public record Container(string Namespace,
                         string SolutionName,
                         string ResourceName,
+                        bool UseVersioning,
                         Dockerfile? Dockerfile,
                         Dictionary<string, ResourceBinding> Bindings,
                         Dictionary<string, string> Env)
@@ -59,7 +60,7 @@ public record Container(string Namespace,
             AnsiConsole.MarkupLine($"[bold red]Error deploying {ResourceName} service: {ex.Message}[/]");
         }
 
-        CleanupOldImages();
+        Dockerfile.CleanupOldImages();
         return ResourceOperationResult.Created;
     }
 }

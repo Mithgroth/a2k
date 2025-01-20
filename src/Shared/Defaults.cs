@@ -8,12 +8,15 @@ public static class Defaults
 {
     public const string ASPIRE_SCHEMA = "https://json.schemastore.org/aspire-8.0.json";
 
+    public static string ImageCachePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "a2k", "docker-images.json");
+
     public static JsonSerializerOptions JsonSerializerOptions { get; set; } = new JsonSerializerOptions
     {
         AllowTrailingCommas = true,
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         ReadCommentHandling = JsonCommentHandling.Skip,
+        WriteIndented = true,
     };
 
     public static Dictionary<string, string> Labels(string applicationName, string? resourceName = "")

@@ -28,7 +28,7 @@ internal static class Helpers
             getDefaultValue: () => string.Empty);
 
         var versioningOption = new Option<bool>(
-            "--useVersions",
+            "--useVersioning",
             description: "Use versioning while deploying to Kubernetes and Docker, if this is false a2k only uses latest tag",
             getDefaultValue: () => false);
 

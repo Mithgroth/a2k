@@ -18,6 +18,7 @@ public sealed record Solution
     /// AppHost folder path of the .NET Aspire solution
     /// </summary>
     public string AppHostPath { get; set; } = string.Empty;
+    public bool UseVersioning { get; } = false;
 
     /// <summary>
     /// manifest.json path of the AppHost project
@@ -34,15 +35,17 @@ public sealed record Solution
         // TODO: Ensure it is a .NET Aspire solution
 
         AppHostPath = appHost ?? throw new ArgumentNullException(nameof(appHost));
+        UseVersioning = useVersioning;
         ManifestPath = Path.Combine(appHost, "manifest.json");
         Name = Path.GetFileName(Directory.GetParent(appHost)?.FullName ?? "aspire-app").Replace(".sln", string.Empty);
+
 
         if (!string.IsNullOrEmpty(@namespace))
         {
             Namespace = @namespace;
         }
 
-        if (useVersioning)
+        if (UseVersioning)
         {
             var now = DateTime.UtcNow;
             var year = now.Year.ToString().Substring(2, 2); // Get last 2 digits of year
@@ -106,6 +109,7 @@ public sealed record Solution
                                    Name,
                                    resourceName,
                                    CsProjPath: Path.GetFullPath(Path.Combine(AppHostPath, manifestResource.Path)),
+                                   UseVersioning,
                                    new Dockerfile($"{Name.ToLowerInvariant()}-{resourceName.ToLowerInvariant()}", Tag),
                                    manifestResource.Bindings,
                                    manifestResource.Env),
@@ -113,6 +117,7 @@ public sealed record Solution
                     => new Container(Namespace,
                                      Name,
                                      resourceName,
+                                     UseVersioning,
                                      Dockerfile: manifestResource switch
                                      {
                                          var r when !string.IsNullOrEmpty(r.Image) => new Dockerfile(r.Image),
