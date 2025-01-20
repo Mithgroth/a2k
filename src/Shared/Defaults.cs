@@ -19,12 +19,14 @@ public static class Defaults
         WriteIndented = true,
     };
 
-    public static Dictionary<string, string> Labels(string applicationName, string? resourceName = "")
+    public static Dictionary<string, string> Labels(string applicationName, string resourceName, string version)
     {
         var defaultLabels = new Dictionary<string, string>()
         {
-            { "application", applicationName },
-            { "deployed-by", "a2k" },
+            { "app.kubernetes.io/name", applicationName},
+            { "app.kubernetes.io/component", resourceName},
+            { "app.kubernetes.io/managed-by", "a2k"},
+            { "app.kubernetes.io/version", version}
         };
 
         if (!string.IsNullOrEmpty(resourceName))
@@ -35,34 +37,34 @@ public static class Defaults
         return defaultLabels;
     }
 
-    public static V1Namespace V1Namespace(string @namespace, string applicationName) => new()
+    public static V1Namespace V1Namespace(string applicationName, string @namespace, string version) => new()
     {
         Metadata = new V1ObjectMeta
         {
             Name = @namespace,
-            Labels = Labels(applicationName),
+            Labels = Labels(applicationName, @namespace, version),
         }
     };
 
-    public static V1Deployment V1Deployment(string applicationName, string resourceName) => new()
+    public static V1Deployment V1Deployment(string applicationName, string resourceName, string version) => new()
     {
         ApiVersion = "apps/v1",
         Kind = Kinds.Deployment.ToString(),
         Metadata = new()
         {
             Name = resourceName,
-            Labels = Labels(applicationName, resourceName)
+            Labels = Labels(applicationName, resourceName, version)
         }
     };
 
-    public static V1Service V1Service(string applicationName, string resourceName) => new()
+    public static V1Service V1Service(string applicationName, string resourceName, string version) => new()
     {
         ApiVersion = "v1",
         Kind = Kinds.Service.ToString(),
         Metadata = new()
         {
             Name = $"{resourceName}-service",
-            Labels = Labels(applicationName, resourceName)
+            Labels = Labels(applicationName, resourceName, version)
         }
     };
 

@@ -9,14 +9,13 @@ namespace a2k.Shared.Models.Aspire;
 /// <summary>
 /// Represents a container resource in .NET Aspire environment (redis, postgres, etc)
 /// </summary>
-public record Container(string Namespace,
-                        string SolutionName,
+public record Container(Solution Solution,
                         string ResourceName,
                         bool UseVersioning,
                         Dockerfile? Dockerfile,
                         Dictionary<string, ResourceBinding> Bindings,
                         Dictionary<string, string> Env)
-    : Resource(SolutionName, ResourceName, Dockerfile, Bindings, Env, AspireResourceType.Container)
+    : Resource(Solution, ResourceName, Dockerfile, Bindings, Env, AspireResourceType.Container)
 {
     public override async Task<ResourceOperationResult> Deploy(k8s.Kubernetes k8s)
     {
@@ -65,25 +64,25 @@ public record Container(string Namespace,
 
             try
             {
-                await k8s.ReadNamespacedDeploymentAsync(deployment.Metadata.Name, Namespace);
+                await k8s.ReadNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Namespace);
 
                 if (UseVersioning)
                 {
-                    await k8s.ReplaceNamespacedDeploymentAsync(deployment, deployment.Metadata.Name, Namespace);
+                    await k8s.ReplaceNamespacedDeploymentAsync(deployment, deployment.Metadata.Name, Solution.Namespace);
 
                     AnsiConsole.MarkupLine($"[bold blue]Pushed a new revision for {ResourceName} deployment[/]");
                 }
                 else
                 {
-                    await k8s.DeleteNamespacedDeploymentAsync(deployment.Metadata.Name, Namespace);
-                    await k8s.CreateNamespacedDeploymentAsync(deployment, Namespace);
+                    await k8s.DeleteNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Namespace);
+                    await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Namespace);
 
                     AnsiConsole.MarkupLine($"[bold blue]Replaced deployment for {ResourceName}[/]");
                 }
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
-                await k8s.CreateNamespacedDeploymentAsync(deployment, Namespace);
+                await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Namespace);
                 AnsiConsole.MarkupLine($"[bold green]Created new deployment for {ResourceName}[/]");
             }
             catch (Exception ex)
@@ -98,25 +97,25 @@ public record Container(string Namespace,
 
             try
             {
-                await k8s.ReadNamespacedServiceAsync(service.Metadata.Name, Namespace);
+                await k8s.ReadNamespacedServiceAsync(service.Metadata.Name, Solution.Namespace);
 
                 if (UseVersioning)
                 {
-                    await k8s.ReplaceNamespacedServiceAsync(service, service.Metadata.Name, Namespace);
+                    await k8s.ReplaceNamespacedServiceAsync(service, service.Metadata.Name, Solution.Namespace);
 
                     AnsiConsole.MarkupLine($"[bold blue]Pushed a new revision for {ResourceName} service[/]");
                 }
                 else
                 {
-                    await k8s.DeleteNamespacedServiceAsync(service.Metadata.Name, Namespace);
-                    await k8s.CreateNamespacedServiceAsync(service, Namespace);
+                    await k8s.DeleteNamespacedServiceAsync(service.Metadata.Name, Solution.Namespace);
+                    await k8s.CreateNamespacedServiceAsync(service, Solution.Namespace);
 
                     AnsiConsole.MarkupLine($"[bold blue]Replaced service for {ResourceName}[/]");
                 }
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
-                await k8s.CreateNamespacedServiceAsync(service, Namespace);
+                await k8s.CreateNamespacedServiceAsync(service, Solution.Namespace);
                 AnsiConsole.MarkupLine($"[bold green]Created new service for {ResourceName}[/]");
             }
             catch (Exception ex)

@@ -10,12 +10,11 @@ namespace a2k.Shared.Models.Aspire;
 /// <summary>
 /// Represents a static value resource in .NET Aspire environment
 /// </summary>
-public record Value(string Namespace,
-                    string SolutionName,
+public record Value(Solution Solution,
                     string ResourceName,
                     string StaticValue,
                     Dictionary<string, ResourceInput> Inputs)
-    : Resource(SolutionName, ResourceName, null, null, null, AspireResourceType.Value)
+    : Resource(Solution, ResourceName, null, null, null, AspireResourceType.Value)
 {
     public override async Task<ResourceOperationResult> Deploy(k8s.Kubernetes k8s)
     {
@@ -46,8 +45,8 @@ public record Value(string Namespace,
                 Metadata = new V1ObjectMeta
                 {
                     Name = ResourceName,
-                    NamespaceProperty = Namespace,
-                    Labels = Defaults.Labels(SolutionName, ResourceName)
+                    NamespaceProperty = Solution.Namespace,
+                    Labels = Defaults.Labels(Solution.Name, ResourceName, Solution.Tag)
                 },
                 StringData = new Dictionary<string, string>
                 {
@@ -57,17 +56,17 @@ public record Value(string Namespace,
 
             try
             {
-                await k8s.ReadNamespacedSecretAsync(secret.Metadata.Name, Namespace);
+                await k8s.ReadNamespacedSecretAsync(secret.Metadata.Name, Solution.Namespace);
 
                 // Always replace secrets to ensure latest value
-                await k8s.DeleteNamespacedSecretAsync(secret.Metadata.Name, Namespace);
-                await k8s.CreateNamespacedSecretAsync(secret, Namespace);
+                await k8s.DeleteNamespacedSecretAsync(secret.Metadata.Name, Solution.Namespace);
+                await k8s.CreateNamespacedSecretAsync(secret, Solution.Namespace);
 
                 AnsiConsole.MarkupLine($"[bold blue]Updated secret value for {ResourceName}[/]");
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
-                await k8s.CreateNamespacedSecretAsync(secret, Namespace);
+                await k8s.CreateNamespacedSecretAsync(secret, Solution.Namespace);
                 AnsiConsole.MarkupLine($"[bold green]Created new secret value for {ResourceName}[/]");
             }
             catch (Exception ex)
@@ -87,8 +86,8 @@ public record Value(string Namespace,
                 Metadata = new V1ObjectMeta
                 {
                     Name = ResourceName,
-                    NamespaceProperty = Namespace,
-                    Labels = Defaults.Labels(SolutionName, ResourceName)
+                    NamespaceProperty = Solution.Namespace,
+                    Labels = Defaults.Labels(Solution.Name, ResourceName, Solution.Tag)
                 },
                 Data = new Dictionary<string, string>
                 {
@@ -98,17 +97,17 @@ public record Value(string Namespace,
 
             try
             {
-                await k8s.ReadNamespacedConfigMapAsync(configMap.Metadata.Name, Namespace);
+                await k8s.ReadNamespacedConfigMapAsync(configMap.Metadata.Name, Solution.Namespace);
 
                 // Always replace config to ensure latest value
-                await k8s.DeleteNamespacedConfigMapAsync(configMap.Metadata.Name, Namespace);
-                await k8s.CreateNamespacedConfigMapAsync(configMap, Namespace);
+                await k8s.DeleteNamespacedConfigMapAsync(configMap.Metadata.Name, Solution.Namespace);
+                await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Namespace);
 
                 AnsiConsole.MarkupLine($"[bold blue]Updated config value for {ResourceName}[/]");
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
-                await k8s.CreateNamespacedConfigMapAsync(configMap, Namespace);
+                await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Namespace);
                 AnsiConsole.MarkupLine($"[bold green]Created new config value for {ResourceName}[/]");
             }
             catch (Exception ex)

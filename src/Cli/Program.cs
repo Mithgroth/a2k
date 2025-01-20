@@ -30,15 +30,7 @@ public class Program
                 async ctx =>
                 {
                     var k8s = new Kubernetes(KubernetesClientConfiguration.BuildConfigFromConfigFile());
-                    var namespaceResult = await solution.CheckNamespace(k8s);
-                    AnsiConsole.MarkupLine($"[bold {Helpers.PickColourForResult(namespaceResult)}]Checking {@namespace} namespace: {namespaceResult}[/]");
-                    AnsiConsole.WriteLine();
-                    AnsiConsole.WriteLine();
-
-                    foreach (var resource in solution.Resources)
-                    {
-                        await resource.Deploy(k8s);
-                    }
+                    await solution.Deploy(k8s);
                 });
 
         AnsiConsole.MarkupLine("[bold green]:thumbs_up: Deployment completed![/]");
