@@ -19,23 +19,6 @@ public record Project(string Namespace,
                       Dictionary<string, string> Env)
     : Resource(SolutionName, ResourceName, Dockerfile, Bindings, Env, AspireResourceType.Project)
 {
-    public void PublishContainer()
-    {
-        AnsiConsole.MarkupLine($"[bold gray]Building .NET project {ResourceName}...[/]");
-
-        var publishCommand = $"dotnet publish {Directory.GetParent(CsProjPath)} -c Release --verbosity quiet --os linux /t:PublishContainer /p:ContainerRepository={Dockerfile.Name}";
-        if (UseVersioning)
-        {
-            publishCommand += $" /p:ContainerImageTags={Dockerfile.Tag}";
-        }
-
-        Shell.Run(publishCommand);
-        AnsiConsole.MarkupLine($"[bold green]Published Docker image for {ResourceName} as {Dockerfile.FullImageName}[/]");
-
-        var sha256 = Shell.Run($"docker inspect --format={{{{.Id}}}} {Dockerfile.FullImageName}").Replace("sha256:", "").Trim();
-        Dockerfile = Dockerfile.UpdateSHA256(sha256);
-    }
-
     public override async Task<ResourceOperationResult> Deploy(k8s.Kubernetes k8s)
     {
         PublishContainer();
@@ -48,6 +31,23 @@ public record Project(string Namespace,
         }
 
         return ResourceOperationResult.Created;
+
+        void PublishContainer()
+        {
+            AnsiConsole.MarkupLine($"[bold gray]Building .NET project {ResourceName}...[/]");
+
+            var publishCommand = $"dotnet publish {Directory.GetParent(CsProjPath)} -c Release --verbosity quiet --os linux /t:PublishContainer /p:ContainerRepository={Dockerfile.Name}";
+            if (UseVersioning)
+            {
+                publishCommand += $" /p:ContainerImageTags={Dockerfile.Tag}";
+            }
+
+            Shell.Run(publishCommand);
+            AnsiConsole.MarkupLine($"[bold green]Published Docker image for {ResourceName} as {Dockerfile.FullImageName}[/]");
+
+            var sha256 = Shell.Run($"docker inspect --format={{{{.Id}}}} {Dockerfile.FullImageName}").Replace("sha256:", "").Trim();
+            Dockerfile = Dockerfile.UpdateSHA256(sha256);
+        }
 
         // TODO: DeployResource and DeployService essential does the same thing.
         // However their Kubernetes types are not interfaced, so we cannot pattern them out.

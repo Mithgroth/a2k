@@ -32,8 +32,13 @@ public class Program
                     var k8s = new Kubernetes(KubernetesClientConfiguration.BuildConfigFromConfigFile());
                     var namespaceResult = await solution.CheckNamespace(k8s);
                     AnsiConsole.MarkupLine($"[bold {Helpers.PickColourForResult(namespaceResult)}]Checking {@namespace} namespace: {namespaceResult}[/]");
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.WriteLine();
 
-                    await Task.WhenAll(solution.Resources.Select(resource => resource.Deploy(k8s)));
+                    foreach (var resource in solution.Resources)
+                    {
+                        await resource.Deploy(k8s);
+                    }
                 });
 
         AnsiConsole.MarkupLine("[bold green]:thumbs_up: Deployment completed![/]");
@@ -43,10 +48,10 @@ public class Program
             var output = Shell.Run("docker login", writeToOutput: false);
             var panel = new Panel(output)
             {
-                Header = new("[bold navy]Docker Login[/]")
+                Header = new("[bold deepskyblue1]Docker Login[/]")
             }
             .DoubleBorder()
-            .BorderColor(Color.NavyBlue);
+            .BorderColor(Color.DeepSkyBlue1);
 
             AnsiConsole.Write(panel);
         }
