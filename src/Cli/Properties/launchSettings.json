@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "a2k.Cli": {
+    "AspireApp1.AppHost": {
       "commandName": "Project",
       "commandLineArgs": "--namespace a2k --useVersioning false",
       "workingDirectory": "H:\\a2k\\tests\\AspireApp1\\AspireApp1.AppHost"
