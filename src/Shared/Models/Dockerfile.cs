@@ -44,9 +44,9 @@ public record Dockerfile(string Name,
         }
 
         // Add new SHA256 if it's not already in the list
-        if (!value.Contains(sha256))
+        if (!imageCache[Name].Contains(sha256))
         {
-            value.Add(sha256);
+            imageCache[Name].Add(sha256);
         }
 
         // Update with new SHA256
