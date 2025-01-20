@@ -37,8 +37,7 @@ public sealed record Solution
         AppHostPath = appHost ?? throw new ArgumentNullException(nameof(appHost));
         UseVersioning = useVersioning;
         ManifestPath = Path.Combine(appHost, "manifest.json");
-        Name = Path.GetFileName(Directory.GetParent(appHost)?.FullName ?? "aspire-app").Replace(".sln", string.Empty);
-
+        Name = FindAndFormatSolutionName(appHost);
 
         if (!string.IsNullOrEmpty(@namespace))
         {
@@ -48,11 +47,36 @@ public sealed record Solution
         if (UseVersioning)
         {
             var now = DateTime.UtcNow;
-            var year = now.Year.ToString().Substring(2, 2); // Get last 2 digits of year
-            var dayOfYear = now.DayOfYear.ToString("D3"); // 3 digits, zero-padded
-            var time = now.ToString("HHmmss"); // 24-hour format
+            var year = now.Year.ToString().Substring(2, 2);
+            var dayOfYear = now.DayOfYear.ToString("D3");
+            var time = now.ToString("HHmmss");
             Tag = $"{year}{dayOfYear}{time}";
         }
+    }
+
+    private static string FindAndFormatSolutionName(string startPath)
+    {
+        var directory = new DirectoryInfo(startPath);
+        while (directory != null)
+        {
+            var solutionFile = directory.GetFiles("*.sln").FirstOrDefault();
+            if (solutionFile != null)
+            {
+                return ToKebabCase(Path.GetFileNameWithoutExtension(solutionFile.Name));
+            }
+            directory = directory.Parent;
+        }
+        return "aspire-app";
+    }
+
+    private static string ToKebabCase(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return input;
+
+        return string.Concat(input.Select((x, i) => i > 0 && char.IsUpper(x) ? "-" + x.ToString() : x.ToString()))
+            .Trim('-')
+            .ToLowerInvariant();
     }
 
     public void CreateManifestIfNotExists()
