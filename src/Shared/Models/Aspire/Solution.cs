@@ -32,8 +32,6 @@ public sealed record Solution
 
     public Solution(string appHost, string? @namespace, bool useVersioning = false)
     {
-        // TODO: Ensure it is a .NET Aspire solution
-
         AppHostPath = appHost ?? throw new ArgumentNullException(nameof(appHost));
         UseVersioning = useVersioning;
         ManifestPath = Path.Combine(appHost, "manifest.json");
@@ -156,8 +154,13 @@ public sealed record Solution
                                      resourceName,
                                      manifestResource.Value,
                                      manifestResource.Inputs),
-                var rt when rt.Contains("value", StringComparison.OrdinalIgnoreCase) => throw new NotImplementedException(resourceName),
-                _ => throw new ArgumentException(resourceName),
+                var rt when rt.Contains("value", StringComparison.OrdinalIgnoreCase)
+                    => new Value(Namespace,
+                                 Name,
+                                 resourceName,
+                                 manifestResource.Value,
+                                 manifestResource.Inputs),
+                _ => throw new ArgumentException($"Unknown resource type: {manifestResource.ResourceType} for resource {resourceName}")
             };
 
         Dockerfile CreateDockerfile(ManifestResource r, string appHostPath, string resourceName)

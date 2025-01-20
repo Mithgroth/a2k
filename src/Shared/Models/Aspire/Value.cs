@@ -1,4 +1,4 @@
-﻿using a2k.Shared.Models.Kubernetes;
+using a2k.Shared.Models.Kubernetes;
 using k8s;
 using k8s.Autorest;
 using k8s.Models;
@@ -8,19 +8,14 @@ using System.Net;
 namespace a2k.Shared.Models.Aspire;
 
 /// <summary>
-/// 
+/// Represents a static value resource in .NET Aspire environment
 /// </summary>
-/// <param name="Namespace"></param>
-/// <param name="SolutionName"></param>
-/// <param name="ResourceName"></param>
-/// <param name="Bindings"></param>
-/// <param name="Env"></param>
-public record Parameter(string Namespace,
-                        string SolutionName,
-                        string ResourceName,
-                        string Value,
-                        Dictionary<string, ResourceInput> Inputs)
-    : Resource(SolutionName, ResourceName, null, null, null, AspireResourceType.Parameter)
+public record Value(string Namespace,
+                    string SolutionName,
+                    string ResourceName,
+                    string StaticValue,
+                    Dictionary<string, ResourceInput> Inputs)
+    : Resource(SolutionName, ResourceName, null, null, null, AspireResourceType.Value)
 {
     public override async Task<ResourceOperationResult> Deploy(k8s.Kubernetes k8s)
     {
@@ -37,12 +32,12 @@ public record Parameter(string Namespace,
 
         bool IsSecret() => 
             Inputs != null && 
-            Inputs.TryGetValue("value", out var paramInput) && 
-            paramInput.Secret;
+            Inputs.TryGetValue("value", out var valueInput) && 
+            valueInput.Secret;
 
         async Task DeploySecret()
         {
-            AnsiConsole.MarkupLine($"[bold gray]Deploying secret parameter: {ResourceName}[/]");
+            AnsiConsole.MarkupLine($"[bold gray]Deploying secret value: {ResourceName}[/]");
 
             var secret = new V1Secret
             {
@@ -54,9 +49,9 @@ public record Parameter(string Namespace,
                     NamespaceProperty = Namespace,
                     Labels = Defaults.Labels(SolutionName, ResourceName)
                 },
-                Data = new Dictionary<string, byte[]>
+                StringData = new Dictionary<string, string>
                 {
-                    { "value", System.Text.Encoding.UTF8.GetBytes(Value ?? "") }
+                    { "value", StaticValue ?? "" }
                 }
             };
 
@@ -68,22 +63,22 @@ public record Parameter(string Namespace,
                 await k8s.DeleteNamespacedSecretAsync(secret.Metadata.Name, Namespace);
                 await k8s.CreateNamespacedSecretAsync(secret, Namespace);
 
-                AnsiConsole.MarkupLine($"[bold blue]Updated secret for {ResourceName}[/]");
+                AnsiConsole.MarkupLine($"[bold blue]Updated secret value for {ResourceName}[/]");
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
                 await k8s.CreateNamespacedSecretAsync(secret, Namespace);
-                AnsiConsole.MarkupLine($"[bold green]Created new secret for {ResourceName}[/]");
+                AnsiConsole.MarkupLine($"[bold green]Created new secret value for {ResourceName}[/]");
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[bold red]Error deploying secret {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]");
+                AnsiConsole.MarkupLine($"[bold red]Error deploying secret value {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]");
             }
         }
 
         async Task DeployConfigMap()
         {
-            AnsiConsole.MarkupLine($"[bold gray]Deploying config parameter: {ResourceName}[/]");
+            AnsiConsole.MarkupLine($"[bold gray]Deploying config value: {ResourceName}[/]");
 
             var configMap = new V1ConfigMap
             {
@@ -97,7 +92,7 @@ public record Parameter(string Namespace,
                 },
                 Data = new Dictionary<string, string>
                 {
-                    { "value", Value ?? "" }
+                    { "value", StaticValue ?? "" }
                 }
             };
 
@@ -109,17 +104,17 @@ public record Parameter(string Namespace,
                 await k8s.DeleteNamespacedConfigMapAsync(configMap.Metadata.Name, Namespace);
                 await k8s.CreateNamespacedConfigMapAsync(configMap, Namespace);
 
-                AnsiConsole.MarkupLine($"[bold blue]Updated config for {ResourceName}[/]");
+                AnsiConsole.MarkupLine($"[bold blue]Updated config value for {ResourceName}[/]");
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
                 await k8s.CreateNamespacedConfigMapAsync(configMap, Namespace);
-                AnsiConsole.MarkupLine($"[bold green]Created new config for {ResourceName}[/]");
+                AnsiConsole.MarkupLine($"[bold green]Created new config value for {ResourceName}[/]");
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[bold red]Error deploying config {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]");
+                AnsiConsole.MarkupLine($"[bold red]Error deploying config value {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]");
             }
         }
     }
-}
+} 
