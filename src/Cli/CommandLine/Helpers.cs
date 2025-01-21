@@ -12,6 +12,7 @@ internal static class Helpers
         AnsiConsole.Write(new FigletText("a2k").Color(Color.Fuchsia).Centered());
         AnsiConsole.Write(new Markup("[slowblink plum4]Deploy .NET Aspire to Kubernetes![/]").Centered());
         AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule());
         AnsiConsole.WriteLine();
     }
 
