@@ -8,14 +8,15 @@ namespace a2k.Shared.Models.Aspire;
 public sealed record Solution
 {
     /// <summary>
-    /// Represents .sln file name in a .NET Aspire solution, used as Application name in Kubernetes
+    /// Represents .sln file name in a .NET Aspire solution, used as Namespace in Kubernetes
     /// </summary>
     public string Name { get; set; } = string.Empty;
     /// <summary>
     /// Environment name for the deployment - default is "default"
     /// Can be used to seperate "dev", "stg", "prod" environments
+    /// Used as Application in Kubernetes
     /// </summary>
-    public string Namespace { get; set; } = "default";
+    public string Env { get; set; } = "default";
     /// <summary>
     /// AppHost folder path of the .NET Aspire solution
     /// </summary>
@@ -47,43 +48,14 @@ public sealed record Solution
     /// </summary>
     public List<Resource> Resources { get; set; } = [];
 
-    public Solution(string appHost, string? @namespace, bool useVersioning = false)
+    public Solution(string appHostPath, string? name, string env, bool useVersioning = false)
     {
-        AppHostPath = appHost ?? throw new ArgumentNullException(nameof(appHost));
+        AppHostPath = appHostPath ?? throw new ArgumentNullException(nameof(appHostPath));
+        Env = string.IsNullOrEmpty(env) ? "default" : env;
+        ManifestPath = Path.Combine(appHostPath, "manifest.json");
+        Name = string.IsNullOrEmpty(name) ? Utility.FindAndFormatSolutionName(appHostPath) : name;
+        Tag = UseVersioning ? Utility.GenerateVersion() : "latest";
         UseVersioning = useVersioning;
-        ManifestPath = Path.Combine(appHost, "manifest.json");
-        Name = FindAndFormatSolutionName(appHost);
-
-        if (!string.IsNullOrEmpty(@namespace))
-        {
-            Namespace = @namespace;
-        }
-
-        if (UseVersioning)
-        {
-            var now = DateTime.UtcNow;
-            var year = now.Year.ToString().Substring(2, 2);
-            var dayOfYear = now.DayOfYear.ToString("D3");
-            var time = now.ToString("HHmmss");
-            Tag = $"{year}{dayOfYear}{time}";
-        }
-
-        static string FindAndFormatSolutionName(string startPath)
-        {
-            var directory = new DirectoryInfo(startPath);
-            while (directory != null)
-            {
-                var solutionFile = directory.GetFiles("*.sln").FirstOrDefault();
-                if (solutionFile != null)
-                {
-                    return Path.GetFileNameWithoutExtension(solutionFile.Name).ToKebabCase();
-                }
-
-                directory = directory.Parent;
-            }
-
-            return "aspire-app";
-        }
     }
 
     public async Task<ResourceOperationResult> ReadManifest()
@@ -207,7 +179,7 @@ public sealed record Solution
     {
         try
         {
-            await k8s.ReadNamespaceAsync(Namespace);
+            await k8s.ReadNamespaceAsync(Name);
             return ResourceOperationResult.Exists;
         }
         catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -217,7 +189,7 @@ public sealed record Solution
                 return ResourceOperationResult.Missing;
             }
 
-            await k8s.CreateNamespaceAsync(Defaults.V1Namespace(Name, Namespace, Tag));
+            await k8s.CreateNamespaceAsync(Defaults.V1Namespace(Name, Env, Tag));
             return ResourceOperationResult.Created;
         }
     }

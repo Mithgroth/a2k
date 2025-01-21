@@ -49,7 +49,7 @@ public abstract record Resource(Solution Solution,
             }
         }
 
-        var resource = Defaults.V1Deployment(Solution.Name, ResourceName, Solution.Tag);
+        var resource = Defaults.V1Deployment(ResourceName, Solution.Env, Solution.Tag);
         resource.Spec = new V1DeploymentSpec
         {
             Replicas = 1,
@@ -58,7 +58,7 @@ public abstract record Resource(Solution Solution,
             {
                 Metadata = new V1ObjectMeta
                 {
-                    Labels = Defaults.Labels(Solution.Name, ResourceName, Solution.Tag),
+                    Labels = Defaults.Labels(Solution.Env, Solution.Tag),
                     Annotations = new Dictionary<string, string>
                     {
                         ["createdAt"] = DateTime.UtcNow.ToString("o")
@@ -103,10 +103,10 @@ public abstract record Resource(Solution Solution,
             }
         }
 
-        var resource = Defaults.V1Service(Solution.Name, ResourceName, Solution.Tag);
+        var resource = Defaults.V1Service(ResourceName, Solution.Env, Solution.Tag);
         resource.Spec = new V1ServiceSpec
         {
-            Selector = Defaults.Labels(Solution.Name, ResourceName, Solution.Tag),
+            Selector = Defaults.Labels(Solution.Env, Solution.Tag),
             Ports = [new() { Port = port, TargetPort = port }]
         };
 

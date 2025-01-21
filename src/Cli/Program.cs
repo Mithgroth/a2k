@@ -13,13 +13,13 @@ public class Program
     {
         Helpers.Greet();
 
-        var rootCommand = Helpers.WireUp<string, string, bool>(RunDeployment);
+        var rootCommand = Helpers.WireUp<string, string, string, bool>(RunDeployment);
         return await rootCommand.InvokeAsync(args);
     }
 
-    private static async Task RunDeployment(string appHost, string @namespace, bool useVersioning = false)
+    private static async Task RunDeployment(string appHostPath, string name, string env, bool useVersioning = false)
     {
-        var solution = new Solution(appHost, @namespace, useVersioning);
+        var solution = new Solution(appHostPath, name, env, useVersioning);
         await solution.ReadManifest();
 
         DockerLogin();

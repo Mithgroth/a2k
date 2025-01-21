@@ -65,25 +65,25 @@ public record Container(Solution Solution,
 
             try
             {
-                await k8s.ReadNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Namespace);
+                await k8s.ReadNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Name);
 
                 if (UseVersioning)
                 {
-                    await k8s.ReplaceNamespacedDeploymentAsync(deployment, deployment.Metadata.Name, Solution.Namespace);
+                    await k8s.ReplaceNamespacedDeploymentAsync(deployment, deployment.Metadata.Name, Solution.Name);
 
                     AnsiConsole.MarkupLine($"[bold blue]Pushed a new revision for {ResourceName} deployment[/]");
                 }
                 else
                 {
-                    await k8s.DeleteNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Namespace);
-                    await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Namespace);
+                    await k8s.DeleteNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Name);
+                    await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Name);
 
                     AnsiConsole.MarkupLine($"[bold blue]Replaced deployment for {ResourceName}[/]");
                 }
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
-                await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Namespace);
+                await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Name);
                 AnsiConsole.MarkupLine($"[bold green]Created new deployment for {ResourceName}[/]");
             }
             catch (Exception ex)
@@ -98,25 +98,25 @@ public record Container(Solution Solution,
 
             try
             {
-                await k8s.ReadNamespacedServiceAsync(service.Metadata.Name, Solution.Namespace);
+                await k8s.ReadNamespacedServiceAsync(service.Metadata.Name, Solution.Name);
 
                 if (UseVersioning)
                 {
-                    await k8s.ReplaceNamespacedServiceAsync(service, service.Metadata.Name, Solution.Namespace);
+                    await k8s.ReplaceNamespacedServiceAsync(service, service.Metadata.Name, Solution.Name);
 
                     AnsiConsole.MarkupLine($"[bold blue]Pushed a new revision for {ResourceName} service[/]");
                 }
                 else
                 {
-                    await k8s.DeleteNamespacedServiceAsync(service.Metadata.Name, Solution.Namespace);
-                    await k8s.CreateNamespacedServiceAsync(service, Solution.Namespace);
+                    await k8s.DeleteNamespacedServiceAsync(service.Metadata.Name, Solution.Name);
+                    await k8s.CreateNamespacedServiceAsync(service, Solution.Name);
 
                     AnsiConsole.MarkupLine($"[bold blue]Replaced service for {ResourceName}[/]");
                 }
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
-                await k8s.CreateNamespacedServiceAsync(service, Solution.Namespace);
+                await k8s.CreateNamespacedServiceAsync(service, Solution.Name);
                 AnsiConsole.MarkupLine($"[bold green]Created new service for {ResourceName}[/]");
             }
             catch (Exception ex)

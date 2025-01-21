@@ -24,7 +24,7 @@ public class Test
     {
         // Arrange
         var manifestPath = Path.Combine(TestManifestsPath, fileName);
-        var solution = new Solution("test", "test")
+        var solution = new Solution("test", "test", "test")
         {
             ManifestPath = manifestPath
         };

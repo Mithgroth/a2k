@@ -19,57 +19,51 @@ public static class Defaults
         WriteIndented = true,
     };
 
-    public static Dictionary<string, string> Labels(string applicationName, string resourceName, string version)
-    {
-        var defaultLabels = new Dictionary<string, string>()
+    public static Dictionary<string, string> Labels(string env, string version)
+        => new()
         {
-            { "app.kubernetes.io/name", applicationName},
-            { "app.kubernetes.io/component", resourceName},
+            { "app.kubernetes.io/name", env},
             { "app.kubernetes.io/managed-by", "a2k"},
             { "app.kubernetes.io/version", version}
         };
 
-        if (!string.IsNullOrEmpty(resourceName))
+    public static V1Namespace V1Namespace(string name, string env, string version)
+        => new()
         {
-            defaultLabels["name"] = resourceName;
-        }
+            Metadata = new V1ObjectMeta
+            {
+                Name = name,
+                Labels = Labels(env, version),
+            }
+        };
 
-        return defaultLabels;
-    }
-
-    public static V1Namespace V1Namespace(string applicationName, string @namespace, string version) => new()
-    {
-        Metadata = new V1ObjectMeta
+    public static V1Deployment V1Deployment(string resourceName, string env, string version)
+        => new()
         {
-            Name = @namespace,
-            Labels = Labels(applicationName, @namespace, version),
-        }
-    };
+            ApiVersion = "apps/v1",
+            Kind = Kinds.Deployment.ToString(),
+            Metadata = new()
+            {
+                Name = resourceName,
+                Labels = Labels(env, version)
+            }
+        };
 
-    public static V1Deployment V1Deployment(string applicationName, string resourceName, string version) => new()
-    {
-        ApiVersion = "apps/v1",
-        Kind = Kinds.Deployment.ToString(),
-        Metadata = new()
+    public static V1Service V1Service(string resourceName, string env, string version)
+        => new()
         {
-            Name = resourceName,
-            Labels = Labels(applicationName, resourceName, version)
-        }
-    };
+            ApiVersion = "v1",
+            Kind = Kinds.Service.ToString(),
+            Metadata = new()
+            {
+                Name = $"{resourceName}-service",
+                Labels = Labels(env, version)
+            }
+        };
 
-    public static V1Service V1Service(string applicationName, string resourceName, string version) => new()
-    {
-        ApiVersion = "v1",
-        Kind = Kinds.Service.ToString(),
-        Metadata = new()
+    public static V1LabelSelector V1LabelSelector(IDictionary<string, string> labels)
+        => new()
         {
-            Name = $"{resourceName}-service",
-            Labels = Labels(applicationName, resourceName, version)
-        }
-    };
-
-    public static V1LabelSelector V1LabelSelector(IDictionary<string, string> labels) => new()
-    {
-        MatchLabels = labels,
-    };
+            MatchLabels = labels,
+        };
 }

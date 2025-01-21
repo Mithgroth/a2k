@@ -40,7 +40,7 @@ public static class Shell
 
         if (process.ExitCode != 0 && throwOnError)
         {
-            throw new Exception($"Command failed: {stderr}");
+            return stderr;
         }
 
         return stdout;

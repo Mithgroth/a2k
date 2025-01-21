@@ -19,13 +19,18 @@ internal static class Helpers
     private static IList<Option> ConfigureOptions()
     {
         var appHostOption = new Option<string>(
-            "--appHost",
+            "--appHostPath",
             description: "The path to the AppHost project folder",
             getDefaultValue: Directory.GetCurrentDirectory);
 
-        var namespaceOption = new Option<string>(
-            "--namespace",
-            description: "The Kubernetes namespace to deploy to",
+        var nameOption = new Option<string>(
+            "--name",
+            description: "Name of your application, deployed to Kubernetes as Namespace. Defaults to your Aspire project's sln file name.",
+            getDefaultValue: () => string.Empty);
+
+        var envOption = new Option<string>(
+            "--env",
+            description: "Environment you are deploying as (dev, stg, prod), deployed to Kubernetes as Application. Defaults to your \"default\" if not specified.",
             getDefaultValue: () => string.Empty);
 
         var versioningOption = new Option<bool>(
@@ -33,10 +38,10 @@ internal static class Helpers
             description: "Use versioning while deploying to Kubernetes and Docker, if this is false a2k only uses latest tag",
             getDefaultValue: () => false);
 
-        return [appHostOption, namespaceOption, versioningOption];
+        return [appHostOption, nameOption, envOption, versioningOption];
     }
 
-    internal static RootCommand WireUp<T1, T2, T3>(Func<T1, T2, T3, Task> handler)
+    internal static RootCommand WireUp<T1, T2, T3, T4>(Func<T1, T2, T3, T4, Task> handler)
     {
         var options = ConfigureOptions();
 
@@ -47,6 +52,7 @@ internal static class Helpers
             options[0],
             options[1],
             options[2],
+            options[3],
         };
 
         rootCommand.Description = "a2k CLI: Deploy Aspire projects to Kubernetes";

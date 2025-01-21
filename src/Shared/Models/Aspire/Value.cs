@@ -29,10 +29,7 @@ public record Value(Solution Solution,
 
         return ResourceOperationResult.Created;
 
-        bool IsSecret() => 
-            Inputs != null && 
-            Inputs.TryGetValue("value", out var valueInput) && 
-            valueInput.Secret;
+        bool IsSecret() => Inputs != null && Inputs.TryGetValue("value", out var valueInput) && valueInput.Secret;
 
         async Task DeploySecret()
         {
@@ -45,8 +42,8 @@ public record Value(Solution Solution,
                 Metadata = new V1ObjectMeta
                 {
                     Name = ResourceName,
-                    NamespaceProperty = Solution.Namespace,
-                    Labels = Defaults.Labels(Solution.Name, ResourceName, Solution.Tag)
+                    NamespaceProperty = Solution.Name,
+                    Labels = Defaults.Labels(Solution.Name, ResourceName)
                 },
                 StringData = new Dictionary<string, string>
                 {
@@ -56,17 +53,17 @@ public record Value(Solution Solution,
 
             try
             {
-                await k8s.ReadNamespacedSecretAsync(secret.Metadata.Name, Solution.Namespace);
+                await k8s.ReadNamespacedSecretAsync(secret.Metadata.Name, Solution.Name);
 
                 // Always replace secrets to ensure latest value
-                await k8s.DeleteNamespacedSecretAsync(secret.Metadata.Name, Solution.Namespace);
-                await k8s.CreateNamespacedSecretAsync(secret, Solution.Namespace);
+                await k8s.DeleteNamespacedSecretAsync(secret.Metadata.Name, Solution.Name);
+                await k8s.CreateNamespacedSecretAsync(secret, Solution.Name);
 
                 AnsiConsole.MarkupLine($"[bold blue]Updated secret value for {ResourceName}[/]");
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
-                await k8s.CreateNamespacedSecretAsync(secret, Solution.Namespace);
+                await k8s.CreateNamespacedSecretAsync(secret, Solution.Name);
                 AnsiConsole.MarkupLine($"[bold green]Created new secret value for {ResourceName}[/]");
             }
             catch (Exception ex)
@@ -86,8 +83,8 @@ public record Value(Solution Solution,
                 Metadata = new V1ObjectMeta
                 {
                     Name = ResourceName,
-                    NamespaceProperty = Solution.Namespace,
-                    Labels = Defaults.Labels(Solution.Name, ResourceName, Solution.Tag)
+                    NamespaceProperty = Solution.Name,
+                    Labels = Defaults.Labels(Solution.Name, ResourceName)
                 },
                 Data = new Dictionary<string, string>
                 {
@@ -97,17 +94,17 @@ public record Value(Solution Solution,
 
             try
             {
-                await k8s.ReadNamespacedConfigMapAsync(configMap.Metadata.Name, Solution.Namespace);
+                await k8s.ReadNamespacedConfigMapAsync(configMap.Metadata.Name, Solution.Name);
 
                 // Always replace config to ensure latest value
-                await k8s.DeleteNamespacedConfigMapAsync(configMap.Metadata.Name, Solution.Namespace);
-                await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Namespace);
+                await k8s.DeleteNamespacedConfigMapAsync(configMap.Metadata.Name, Solution.Name);
+                await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Name);
 
                 AnsiConsole.MarkupLine($"[bold blue]Updated config value for {ResourceName}[/]");
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
-                await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Namespace);
+                await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Name);
                 AnsiConsole.MarkupLine($"[bold green]Created new config value for {ResourceName}[/]");
             }
             catch (Exception ex)
