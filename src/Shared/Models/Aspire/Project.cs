@@ -1,8 +1,7 @@
-﻿using a2k.Shared.Models.Kubernetes;
-using k8s;
-using k8s.Autorest;
+﻿using Aspire.Hosting;
 using Spectre.Console;
-using System.Net;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace a2k.Shared.Models.Aspire;
 
@@ -16,105 +15,123 @@ public record Project(Solution Solution,
                       Dockerfile Dockerfile,
                       Dictionary<string, ResourceBinding> Bindings,
                       Dictionary<string, string> Env)
-    : Resource(Solution, ResourceName, Dockerfile, Bindings, Env, AspireResourceType.Project)
+    : Resource(Solution, ResourceName, Dockerfile, Bindings, Env, AspireResourceTypes.Project)
 {
-    public override async Task<ResourceOperationResult> Deploy(k8s.Kubernetes k8s)
+    public override async Task<Result> DeployResource(k8s.Kubernetes k8s)
     {
-        PublishContainer();
-        await DeployResource();
-        await DeployService();
-
-        if (Solution.UseVersioning == false)
+        // Build .NET Project
+        var publishCommand = $"dotnet publish {Directory.GetParent(CsProjPath)} -c Release --verbosity quiet --os linux /t:PublishContainer /p:ContainerRepository={Dockerfile.Name}";
+        if (Solution.UseVersioning)
         {
-            Dockerfile.CleanupOldImages();
+            publishCommand += $" /p:ContainerImageTags={Dockerfile.Tag}";
         }
 
-        return ResourceOperationResult.Created;
+        Shell.Run(publishCommand);
 
-        void PublishContainer()
+        var sha256 = Shell.Run($"docker inspect --format={{{{.Id}}}} {Dockerfile.FullImageName}", writeToOutput: false).Replace("sha256:", "").Trim();
+        Dockerfile = Dockerfile.UpdateSHA256(sha256);
+
+        var baseResult = await base.DeployResource(k8s);
+        baseResult?.Messages.Prepend(new Markup($"[bold green]Published Docker image for {ResourceName} as {Dockerfile.FullImageName}[/]"));
+
+        return baseResult;
+    }
+
+    //public override V1Service ToKubernetesService()
+    //{
+    //    var resource = Defaults.V1Service(ResourceName, Solution.Env, Solution.Tag);
+        
+    //    // Check if we have any external bindings
+    //    var hasExternalBindings = Bindings?.Values.Any(b => b.External ?? false) ?? false;
+        
+    //    // Try to get port from launchSettings.json if we have bindings
+    //    var port = GetProjectPort() ?? 80;
+
+    //    resource.Spec = new V1ServiceSpec
+    //    {
+    //        Type = "ClusterIP",
+    //        Selector = Defaults.SelectorLabels(Solution.Env),
+    //        Ports = [new() { Port = port, TargetPort = 80 }] // targetPort is always 80 (container port)
+    //    };
+
+    //    return resource;
+    //}
+
+    private int? GetProjectPort()
+    {
+        // Only look for ports if we have bindings marked as external
+        if (Bindings == null || !Bindings.Values.Any(b => b.External ?? false))
         {
-            AnsiConsole.MarkupLine($"[bold gray]Building .NET project {ResourceName}...[/]");
-
-            var publishCommand = $"dotnet publish {Directory.GetParent(CsProjPath)} -c Release --verbosity quiet --os linux /t:PublishContainer /p:ContainerRepository={Dockerfile.Name}";
-            if (Solution.UseVersioning)
-            {
-                publishCommand += $" /p:ContainerImageTags={Dockerfile.Tag}";
-            }
-
-            Shell.Run(publishCommand);
-            AnsiConsole.MarkupLine($"[bold green]Published Docker image for {ResourceName} as {Dockerfile.FullImageName}[/]");
-
-            var sha256 = Shell.Run($"docker inspect --format={{{{.Id}}}} {Dockerfile.FullImageName}").Replace("sha256:", "").Trim();
-            Dockerfile = Dockerfile.UpdateSHA256(sha256);
+            return null;
         }
 
-        // TODO: DeployResource and DeployService essential does the same thing.
-        // However their Kubernetes types are not interfaced, so we cannot pattern them out.
-        // Refactor later to DRY.
-
-        async Task DeployResource()
+        // First check if any external binding has a port specified
+        var bindingWithPort = Bindings.Values.FirstOrDefault(b => b.External ?? false && b.Port.HasValue);
+        if (bindingWithPort?.Port != null)
         {
-            var deployment = ToKubernetesDeployment();
+            return bindingWithPort.Port;
+        }
 
+        // If no port in manifest, check launchSettings.json
+        var projectDir = Path.GetDirectoryName(CsProjPath);
+        var launchSettingsPath = Path.Combine(projectDir!, "Properties", "launchSettings.json");
+
+        if (File.Exists(launchSettingsPath))
+        {
             try
             {
-                await k8s.ReadNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Name);
+                var launchSettings = JsonSerializer.Deserialize<LaunchSettings>(
+                    File.ReadAllText(launchSettingsPath), 
+                    Defaults.JsonSerializerOptions);
 
-                if (Solution.UseVersioning)
+                foreach (var profile in launchSettings?.Profiles?.Values ?? Enumerable.Empty<LaunchProfile>())
                 {
-                    await k8s.ReplaceNamespacedDeploymentAsync(deployment, deployment.Metadata.Name, Solution.Name);
+                    if (string.IsNullOrEmpty(profile.ApplicationUrl))
+                    {
+                        continue;
+                    }
 
-                    AnsiConsole.MarkupLine($"[bold blue]Pushed a new revision for {ResourceName} deployment[/]");
-                }
-                else
-                {
-                    await k8s.DeleteNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Name);
-                    await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Name);
+                    var urls = profile.ApplicationUrl.Split(';');
 
-                    AnsiConsole.MarkupLine($"[bold blue]Replaced deployment for {ResourceName}[/]");
+                    // Try to find an HTTP URL first if we have an HTTP binding
+                    if (Bindings.Values.Any(b => (b.External ?? false) && b.Scheme == "http"))
+                    {
+                        var httpUrl = urls.FirstOrDefault(u => u.StartsWith("http://"));
+                        if (httpUrl != null)
+                        {
+                            return ExtractPort(httpUrl);
+                        }
+                    }
+
+                    // If no HTTP URL found or we only have HTTPS binding, use the first HTTPS URL
+                    if (Bindings.Values.Any(b => (b.External ?? false) && b.Scheme == "https"))
+                    {
+                        var httpsUrl = urls.FirstOrDefault(u => u.StartsWith("https://"));
+                        if (httpsUrl != null)
+                        {
+                            return ExtractPort(httpsUrl);
+                        }
+                    }
                 }
-            }
-            catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
-            {
-                await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Name);
-                AnsiConsole.MarkupLine($"[bold green]Created new deployment for {ResourceName}[/]");
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[bold red]Error deploying {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]");
+                AnsiConsole.MarkupLine($"[yellow]Warning: Could not read launch settings for {ResourceName}: {ex.Message}[/]");
             }
         }
-        async Task DeployService()
+
+        // If we have external bindings but no port specified anywhere, generate a random port
+        return Utility.GenerateRandomPort();
+
+        static int ExtractPort(string url)
         {
-            var service = ToKubernetesService();
-
-            try
+            var match = Regex.Match(url, @":(\d+)");
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var port))
             {
-                await k8s.ReadNamespacedServiceAsync(service.Metadata.Name, Solution.Name);
-
-                if (Solution.UseVersioning)
-                {
-                    await k8s.ReplaceNamespacedServiceAsync(service, service.Metadata.Name, Solution.Name);
-
-                    AnsiConsole.MarkupLine($"[bold blue]Pushed a new revision for {ResourceName} service[/]");
-                }
-                else
-                {
-                    await k8s.DeleteNamespacedServiceAsync(service.Metadata.Name, Solution.Name);
-                    await k8s.CreateNamespacedServiceAsync(service, Solution.Name);
-
-                    AnsiConsole.MarkupLine($"[bold blue]Replaced service for {ResourceName}[/]");
-                }
+                return port;
             }
-            catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
-            {
-                await k8s.CreateNamespacedServiceAsync(service, Solution.Name);
-                AnsiConsole.MarkupLine($"[bold green]Created new service for {ResourceName}[/]");
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[bold red]Error deploying {ResourceName} service: {ex.Message}[/]");
-            }
+
+            throw new InvalidOperationException("Invalid port format in launch settings");
         }
     }
 }

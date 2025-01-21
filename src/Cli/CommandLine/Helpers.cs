@@ -1,4 +1,6 @@
-﻿using a2k.Shared.Models.Kubernetes;
+﻿using a2k.Shared.Models;
+using a2k.Shared.Models.Aspire;
+using k8s;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;
@@ -71,4 +73,49 @@ internal static class Helpers
         ResourceOperationResult.Failed => "red",
         _ => "white"
     };
+}
+
+public static class ResultExtensions
+{
+    public static void WriteToConsole(this Result result, LiveDisplayContext ctx, TreeNode node)
+    {
+        node.AddNodes(result.Messages);
+        ctx.Refresh();
+    }
+}
+
+public static class ResourceExtensions
+{
+    public static async Task Deploy(this List<Resource> resources, Kubernetes k8s, LiveDisplayContext ctx, TreeNode node)
+    {
+        var tasks = resources
+                    .Select(x => new { Resource = x, Task = x.DeployResource(k8s) })
+                    .ToList();
+
+        while (tasks.Count > 0)
+        {
+            var completedTask = await Task.WhenAny(tasks.Select(t => t.Task));
+            var result = await completedTask;
+            
+            result.WriteToConsole(ctx, node);
+            tasks.RemoveAll(t => t.Task == completedTask);
+        }
+    }
+
+    public static async Task DeployServices(this List<Resource> resources, Kubernetes k8s, LiveDisplayContext ctx, TreeNode node)
+    {
+        var tasks = resources
+                    .Where(x => x.ResourceType is AspireResourceTypes.Project or AspireResourceTypes.Container)
+                    .Select(x => new { Resource = x, Task = x.DeployService(k8s) })
+                    .ToList();
+
+        while (tasks.Count > 0)
+        {
+            var completedTask = await Task.WhenAny(tasks.Select(t => t.Task));
+            var result = await completedTask;
+
+            result.WriteToConsole(ctx, node);
+            tasks.RemoveAll(t => t.Task == completedTask);
+        }
+    }
 }

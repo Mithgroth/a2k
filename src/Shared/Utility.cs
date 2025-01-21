@@ -35,4 +35,6 @@ public static class Utility
         
         return $"{year}{dayOfYear}{time}";
     }
+
+    public static int GenerateRandomPort() => Random.Shared.Next(30000, 32768);
 }

@@ -1,6 +1,6 @@
 ﻿using a2k.Shared;
+using a2k.Shared.Models;
 using a2k.Shared.Models.Aspire;
-using a2k.Shared.Models.Kubernetes;
 using System.Text.Json;
 
 namespace ManifestLoading;
@@ -34,7 +34,7 @@ public class Test
 
         // Assert
         Assert.Equal(expectedResourceCount, solution.Resources.Count);
-        Assert.Equal(expectedResult, result);
+        Assert.Equal(expectedResult, result.OperationResult);
     }
 
     [Fact]

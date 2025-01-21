@@ -141,10 +141,10 @@ public record Dockerfile(string Name,
                 File.WriteAllText(Defaults.ImageCachePath, JsonSerializer.Serialize(imageCache, Defaults.JsonSerializerOptions));
             }
 
-            AnsiConsole.MarkupLine($"[gray]Removed the following old images for {resourceName}:[/]");
+            AnsiConsole.MarkupLine($"[gray]    Removed the following old images for {resourceName}:[/]");
             foreach (var image in removedImages)
             {
-                AnsiConsole.MarkupLine($"[gray]- {Markup.Escape(image)}[/]");
+                AnsiConsole.MarkupLine($"[gray]         - {Markup.Escape(image)}[/]");
             }
         }
     }

@@ -1,4 +1,3 @@
-using a2k.Shared.Models.Kubernetes;
 using k8s;
 using k8s.Autorest;
 using k8s.Models;
@@ -14,27 +13,13 @@ public record Value(Solution Solution,
                     string ResourceName,
                     string StaticValue,
                     Dictionary<string, ResourceInput> Inputs)
-    : Resource(Solution, ResourceName, null, null, null, AspireResourceType.Value)
+    : Resource(Solution, ResourceName, null, null, null, AspireResourceTypes.Value)
 {
-    public override async Task<ResourceOperationResult> Deploy(k8s.Kubernetes k8s)
+    public override async Task<Result> DeployResource(k8s.Kubernetes k8s)
     {
+        bool IsSecret() => Inputs != null && Inputs.TryGetValue("value", out var valueInput) && valueInput.Secret;
         if (IsSecret())
         {
-            await DeploySecret();
-        }
-        else
-        {
-            await DeployConfigMap();
-        }
-
-        return ResourceOperationResult.Created;
-
-        bool IsSecret() => Inputs != null && Inputs.TryGetValue("value", out var valueInput) && valueInput.Secret;
-
-        async Task DeploySecret()
-        {
-            AnsiConsole.MarkupLine($"[bold gray]Deploying secret value: {ResourceName}[/]");
-
             var secret = new V1Secret
             {
                 ApiVersion = "v1",
@@ -55,27 +40,32 @@ public record Value(Solution Solution,
             {
                 await k8s.ReadNamespacedSecretAsync(secret.Metadata.Name, Solution.Name);
 
-                // Always replace secrets to ensure latest value
                 await k8s.DeleteNamespacedSecretAsync(secret.Metadata.Name, Solution.Name);
                 await k8s.CreateNamespacedSecretAsync(secret, Solution.Name);
 
-                AnsiConsole.MarkupLine($"[bold blue]Updated secret value for {ResourceName}[/]");
+                return new(ResourceOperationResult.Replaced,
+                [
+                    new Markup($"[bold blue]Replaced secret value for {ResourceName}[/]"),
+                ]);
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
                 await k8s.CreateNamespacedSecretAsync(secret, Solution.Name);
-                AnsiConsole.MarkupLine($"[bold green]Created new secret value for {ResourceName}[/]");
+                return new(ResourceOperationResult.Created,
+                [
+                    new Markup($"[bold green]Created new secret value for {ResourceName}[/]"),
+                ]);
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[bold red]Error deploying secret value {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]");
+                return new(ResourceOperationResult.Failed,
+                [
+                    new Markup($"[bold red]Error deploying secret value {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]"),
+                ]);
             }
         }
-
-        async Task DeployConfigMap()
+        else
         {
-            AnsiConsole.MarkupLine($"[bold gray]Deploying config value: {ResourceName}[/]");
-
             var configMap = new V1ConfigMap
             {
                 ApiVersion = "v1",
@@ -96,20 +86,28 @@ public record Value(Solution Solution,
             {
                 await k8s.ReadNamespacedConfigMapAsync(configMap.Metadata.Name, Solution.Name);
 
-                // Always replace config to ensure latest value
                 await k8s.DeleteNamespacedConfigMapAsync(configMap.Metadata.Name, Solution.Name);
                 await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Name);
 
-                AnsiConsole.MarkupLine($"[bold blue]Updated config value for {ResourceName}[/]");
+                return new(ResourceOperationResult.Replaced,
+                [
+                    new Markup($"[bold blue]Replaced config value for {ResourceName}[/]"),
+                ]);
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
                 await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Name);
-                AnsiConsole.MarkupLine($"[bold green]Created new config value for {ResourceName}[/]");
+                return new(ResourceOperationResult.Created,
+                [
+                    new Markup($"[bold green]Created new config value for {ResourceName}[/]"),
+                ]);
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[bold red]Error deploying config value {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]");
+                return new(ResourceOperationResult.Failed,
+                [
+                    new Markup($"[bold red]Error deploying config value {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]"),
+                ]);
             }
         }
     }

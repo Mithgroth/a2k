@@ -59,6 +59,9 @@ public sealed record ResourceBinding
     [JsonPropertyName("external")]
     public bool? External { get; set; }
 
+    [JsonPropertyName("port")]
+    public int? Port { get; set; }
+
     [JsonPropertyName("targetPort")]
     public int? TargetPort { get; set; }
 }

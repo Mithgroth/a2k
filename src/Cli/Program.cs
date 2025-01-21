@@ -20,32 +20,43 @@ public class Program
     private static async Task RunDeployment(string appHostPath, string name, string env, bool useVersioning = false)
     {
         var solution = new Solution(appHostPath, name, env, useVersioning);
-        await solution.ReadManifest();
+        var k8s = new Kubernetes(KubernetesClientConfiguration.BuildConfigFromConfigFile());
 
-        DockerLogin();
-
-        await AnsiConsole.Status()
-            .Spinner(Spinner.Known.Star)
-            .Start("[bold blue]Deploying resources to Kubernetes...[/]",
-                async ctx =>
-                {
-                    var k8s = new Kubernetes(KubernetesClientConfiguration.BuildConfigFromConfigFile());
-                    await solution.Deploy(k8s);
-                });
-
-        AnsiConsole.MarkupLine("[bold green]:thumbs_up: Deployment completed![/]");
-
-        static void DockerLogin()
-        {
-            var output = Shell.Run("docker login", writeToOutput: false);
-            var panel = new Panel(output)
+        var root = new Tree("[bold lightseagreen]Deploying resources to Kubernetes[/]");
+        await AnsiConsole.Live(root)
+            .StartAsync(async ctx =>
             {
-                Header = new("[bold deepskyblue1]Docker Login[/]")
-            }
-            .DoubleBorder()
-            .BorderColor(Color.DeepSkyBlue1);
+                var phase1 = root.AddNode($"[bold]Phase 1 - Preparing[/]");
+                phase1.AddNode($"[bold gray]Checking .NET Aspire manifest.json file[/]");
+                ctx.Refresh();
 
-            AnsiConsole.Write(panel);
-        }
+                solution.CreateManifestIfNotExists().WriteToConsole(ctx, phase1);
+
+                var result = await solution.ReadManifest();
+                result.WriteToConsole(ctx, phase1);
+
+                Shell.DockerLogin();
+
+                result = await solution.CheckNamespace(k8s);
+                result.WriteToConsole(ctx, phase1);
+
+                var phase2 = root.AddNode($"[bold]Phase 2 - Deploying Resources[/]");
+                // TODO: Fix the bug "[bold lightseagreen]Deploying resources to Kubernetes[/]" being doubled somehow
+                await solution.Resources.Deploy(k8s, ctx, phase2);
+
+                var phase3 = root.AddNode($"[bold]Phase 3 - Deploying Services for Resources[/]");
+                await solution.Resources.DeployServices(k8s, ctx, phase3);
+
+                var phase4 = root.AddNode($"[bold]Phase 4 - Configuring Ingress Bindings[/]");
+                // WIP:
+                // CHECK IF WE HAVE ANY EXTERNAL BINDINGS
+                // --> TURN THEM INTO INGRESS RULES
+                // --> INSTALL TRAEFIK
+                // --> DEPLOY INGRESS RULES
+
+                var phase5 = root.AddNode($"[bold]Phase 5 - Testing Node Status[/]");
+
+                //AnsiConsole.MarkupLine("[bold green]Deployment completed![/]");
+            });
     }
 }

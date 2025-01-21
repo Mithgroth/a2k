@@ -1,5 +1,8 @@
-﻿using a2k.Shared.Models.Kubernetes;
+﻿using k8s;
+using k8s.Autorest;
 using k8s.Models;
+using Spectre.Console;
+using System.Net;
 
 namespace a2k.Shared.Models.Aspire;
 
@@ -7,7 +10,7 @@ public abstract record Resource(Solution Solution,
                                 string ResourceName,
                                 Dictionary<string, ResourceBinding>? Bindings,
                                 Dictionary<string, string>? Env,
-                                AspireResourceType ResourceType = AspireResourceType.Unknown)
+                                AspireResourceTypes ResourceType = AspireResourceTypes.Unknown)
 {
     public Dockerfile? Dockerfile { get; set; }
 
@@ -16,13 +19,13 @@ public abstract record Resource(Solution Solution,
                        Dockerfile? dockerfile,
                        Dictionary<string, ResourceBinding>? bindings,
                        Dictionary<string, string>? env,
-                       AspireResourceType resourceType)
+                       AspireResourceTypes resourceType)
         : this(solution, resourceName, bindings, env, resourceType)
     {
         Dockerfile = dockerfile;
     }
 
-    public V1Deployment ToKubernetesDeployment()
+    public virtual V1Deployment ToKubernetesDeployment()
     {
         // Figure out a port from the "bindings" if present
         // For a simple example, pick the first binding that has a targetPort.
@@ -87,7 +90,7 @@ public abstract record Resource(Solution Solution,
         return resource;
     }
 
-    public V1Service ToKubernetesService()
+    public virtual V1Service ToKubernetesService()
     {
         // Identify at least one port to expose
         var port = 80; // default
@@ -113,10 +116,102 @@ public abstract record Resource(Solution Solution,
         return resource;
     }
 
-    public abstract Task<ResourceOperationResult> Deploy(k8s.Kubernetes k8s);
+    public virtual async Task<Result> DeployResource(k8s.Kubernetes k8s)
+    {
+
+        var deployment = ToKubernetesDeployment();
+
+        try
+        {
+            await k8s.ReadNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Name);
+
+            if (Solution.UseVersioning)
+            {
+                await k8s.ReplaceNamespacedDeploymentAsync(deployment, deployment.Metadata.Name, Solution.Name);
+                return new(ResourceOperationResult.Updated,
+                [
+                    new Markup($"[bold blue]Pushed a new revision for {ResourceName} deployment[/]"),
+                ]);
+            }
+            else
+            {
+                await k8s.DeleteNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Name);
+                await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Name);
+
+                return new(ResourceOperationResult.Replaced,
+                [
+                    new Markup($"[bold blue]Replaced deployment for {ResourceName}[/]"),
+                ]);
+            }
+        }
+        catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
+        {
+            await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Name);
+            return new(ResourceOperationResult.Created,
+            [
+                new Markup($"[bold green]Created new deployment for {ResourceName}[/]"),
+            ]);
+        }
+        catch (Exception ex)
+        {
+            return new(ResourceOperationResult.Failed,
+            [
+                new Markup($"[bold red]Error deploying {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]"),
+            ]);
+        }
+
+        if (Solution.UseVersioning == false)
+        {
+            Dockerfile.CleanupOldImages();
+        }
+    }
+
+    public virtual async Task<Result> DeployService(k8s.Kubernetes k8s)
+    {
+        var service = ToKubernetesService();
+
+        try
+        {
+            await k8s.ReadNamespacedServiceAsync(service.Metadata.Name, Solution.Name);
+
+            if (Solution.UseVersioning)
+            {
+                await k8s.ReplaceNamespacedServiceAsync(service, service.Metadata.Name, Solution.Name);
+                return new(ResourceOperationResult.Updated,
+                [
+                    new Markup($"[bold blue]Pushed a new revision for {ResourceName} service[/]"),
+                ]);
+            }
+            else
+            {
+                await k8s.DeleteNamespacedServiceAsync(service.Metadata.Name, Solution.Name);
+                await k8s.CreateNamespacedServiceAsync(service, Solution.Name);
+;
+                return new(ResourceOperationResult.Replaced,
+                [
+                    new Markup($"[bold blue]Replaced service for {ResourceName}[/]"),
+                ]);
+            }
+        }
+        catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
+        {
+            await k8s.CreateNamespacedServiceAsync(service, Solution.Name);
+            return new(ResourceOperationResult.Created,
+            [
+                new Markup($"[bold green]Created new service for {ResourceName}[/]"),
+            ]);
+        }
+        catch (Exception ex)
+        {
+            return new(ResourceOperationResult.Failed,
+            [
+                new Markup($"[bold red] Error deploying {ResourceName} service: {ex.Message}[/]"),
+            ]);
+        }
+    }
 }
 
-public enum AspireResourceType
+public enum AspireResourceTypes
 {
     Unknown,
     Project,

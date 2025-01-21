@@ -45,4 +45,17 @@ public static class Shell
 
         return stdout;
     }
+
+    public static void DockerLogin()
+    {
+        var output = Shell.Run("docker login", writeToOutput: false);
+        //var panel = new Panel(output)
+        //{
+        //    Header = new("[bold deepskyblue1]Docker Login[/]")
+        //}
+        //.DoubleBorder()
+        //.BorderColor(Color.DeepSkyBlue1);
+
+        //AnsiConsole.Write(panel);
+    }
 }
