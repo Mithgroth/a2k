@@ -26,7 +26,7 @@ public class Program
         await AnsiConsole.Live(root)
             .StartAsync(async ctx =>
             {
-                var phase1 = root.AddNode($"[bold]Phase 1 - Preparing[/]");
+                var phase1 = root.AddNode($"[bold]Phase I - Preparing[/]");
                 phase1.AddNode($"[bold gray]Checking .NET Aspire manifest.json file[/]");
                 ctx.Refresh();
 
@@ -40,21 +40,21 @@ public class Program
                 result = await solution.CheckNamespace(k8s);
                 result.WriteToConsole(ctx, phase1);
 
-                var phase2 = root.AddNode($"[bold]Phase 2 - Deploying Resources[/]");
+                var phase2 = root.AddNode($"[bold]Phase II - Deploying Resources[/]");
                 // TODO: Fix the bug "[bold lightseagreen]Deploying resources to Kubernetes[/]" being doubled somehow
                 await solution.Resources.Deploy(k8s, ctx, phase2);
 
-                var phase3 = root.AddNode($"[bold]Phase 3 - Deploying Services for Resources[/]");
+                var phase3 = root.AddNode($"[bold]Phase III - Deploying Services for Resources[/]");
                 await solution.Resources.DeployServices(k8s, ctx, phase3);
 
-                var phase4 = root.AddNode($"[bold]Phase 4 - Configuring Ingress Bindings[/]");
+                var phase4 = root.AddNode($"[bold]Phase IV - Configuring Ingress Bindings[/]");
                 // WIP:
                 // CHECK IF WE HAVE ANY EXTERNAL BINDINGS
                 // --> TURN THEM INTO INGRESS RULES
                 // --> INSTALL TRAEFIK
                 // --> DEPLOY INGRESS RULES
 
-                var phase5 = root.AddNode($"[bold]Phase 5 - Testing Node Status[/]");
+                var phase5 = root.AddNode($"[bold]Phase V - Testing Node Status[/]");
 
                 //AnsiConsole.MarkupLine("[bold green]Deployment completed![/]");
             });
