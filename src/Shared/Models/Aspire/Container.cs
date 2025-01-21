@@ -36,7 +36,7 @@ public record Container(Solution Solution,
 
             if (Dockerfile?.ShouldBuildWithDocker == true)
             {
-                var buildCommand = $"docker build -t {Dockerfile.Name}";
+                var buildCommand = $"docker build -t {Dockerfile.FullImageName}";
                 if (!string.IsNullOrEmpty(Dockerfile?.Path))
                 {
                     buildCommand += $" -f {Dockerfile.Path}";

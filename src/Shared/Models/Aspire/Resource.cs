@@ -53,7 +53,7 @@ public abstract record Resource(Solution Solution,
         resource.Spec = new V1DeploymentSpec
         {
             Replicas = 1,
-            Selector = Defaults.V1LabelSelector(resource.Metadata.Labels),
+            Selector = Defaults.V1LabelSelector(Defaults.SelectorLabels(Solution.Env)),
             Template = new V1PodTemplateSpec
             {
                 Metadata = new V1ObjectMeta
@@ -106,7 +106,7 @@ public abstract record Resource(Solution Solution,
         var resource = Defaults.V1Service(ResourceName, Solution.Env, Solution.Tag);
         resource.Spec = new V1ServiceSpec
         {
-            Selector = Defaults.Labels(Solution.Env, Solution.Tag),
+            Selector = Defaults.SelectorLabels(Solution.Env),
             Ports = [new() { Port = port, TargetPort = port }]
         };
 

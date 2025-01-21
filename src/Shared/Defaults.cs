@@ -27,6 +27,13 @@ public static class Defaults
             { "app.kubernetes.io/version", version}
         };
 
+    public static Dictionary<string, string> SelectorLabels(string env)
+        => new()
+        {
+            { "app.kubernetes.io/name", env},
+            { "app.kubernetes.io/managed-by", "a2k"},
+        };
+
     public static V1Namespace V1Namespace(string name, string env, string version)
         => new()
         {
