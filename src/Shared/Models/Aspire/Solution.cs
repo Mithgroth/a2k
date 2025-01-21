@@ -54,7 +54,7 @@ public sealed record Solution
         Env = string.IsNullOrEmpty(env) ? "default" : env;
         ManifestPath = Path.Combine(appHostPath, "manifest.json");
         Name = string.IsNullOrEmpty(name) ? Utility.FindAndFormatSolutionName(appHostPath) : name;
-        Tag = UseVersioning ? Utility.GenerateVersion() : "latest";
+        Tag = useVersioning ? Utility.GenerateVersion() : "latest";
         UseVersioning = useVersioning;
     }
 
