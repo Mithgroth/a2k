@@ -33,6 +33,12 @@ public record Container(Solution Solution,
             Dockerfile = Dockerfile.UpdateSHA256(sha256);
         }
 
-        return await base.DeployResource(k8s);
+        var result = await base.DeployResource(k8s);
+        if (Solution.UseVersioning == false)
+        {
+            Dockerfile.CleanupOldImages();
+        }
+
+        return result;
     }
 }

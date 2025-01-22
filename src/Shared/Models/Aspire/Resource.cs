@@ -146,12 +146,6 @@ public abstract record Resource(Solution Solution,
         {
             return new(Outcome.Failed, ResourceName, ex);
         }
-
-        // TODO: Fix
-        if (Solution.UseVersioning == false)
-        {
-            Dockerfile.CleanupOldImages();
-        }
     }
 
     public virtual async Task<Result> DeployService(k8s.Kubernetes k8s)

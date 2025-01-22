@@ -34,6 +34,11 @@ public record Project(Solution Solution,
         var baseResult = await base.DeployResource(k8s);
         baseResult?.Messages.Prepend(new Markup($"[bold green]Published Docker image for {ResourceName} as {Dockerfile.FullImageName}[/]"));
 
+        if (Solution.UseVersioning == false)
+        {
+            Dockerfile.CleanupOldImages();
+        }
+
         return baseResult;
     }
 

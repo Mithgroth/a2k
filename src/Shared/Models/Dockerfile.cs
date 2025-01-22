@@ -104,6 +104,7 @@ public record Dockerfile(string Name,
         return this;
     }
 
+    // TODO: Fix bug - docker rmi says it's deleting the images, but it's not.
     public void CleanupOldImages(string resourceName = "<unknown resource>")
     {
         if (SHA256 == null || !ShouldBuildWithDocker)
