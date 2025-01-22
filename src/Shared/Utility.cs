@@ -44,14 +44,14 @@ public static class Utility
     public static string ToMarkup(this Enum resourceOperationResult)
         => resourceOperationResult switch
         {
-            Outcome.Created => $"[bold lightgreen]{Outcome.Created}[/]",
-            Outcome.Exists => $"[bold silver]{Outcome.Exists}[/]",
-            Outcome.Replaced => $"[bold slateblue3]{Outcome.Replaced}[/]",
-            Outcome.Updated => $"[bold lightcoral]{Outcome.Updated}[/]",
-            Outcome.Deleted => $"[bold red3_1]{Outcome.Deleted}[/]",
-            Outcome.Missing => $"[bold lightgoldenrod3]{Outcome.Missing}[/]",
-            Outcome.Failed => $"[bold darkred]{Outcome.Failed}[/]",
-            Outcome.Succeeded => $"[bold chartreuse2]{Outcome.Succeeded}[/]",
+            Outcome.Created => $"[bold lightgreen]{Emoji.Known.Plus} {Outcome.Created}[/]",
+            Outcome.Exists => $"[bold silver]{Emoji.Known.EightSpokedAsterisk}  {Outcome.Exists}[/]",
+            Outcome.Replaced => $"[bold slateblue3]{Emoji.Known.LargeBlueDiamond} {Outcome.Replaced}[/]",
+            Outcome.Updated => $"[bold lightcoral]{Emoji.Known.LargeOrangeDiamond} {Outcome.Updated}[/]",
+            Outcome.Deleted => $"[bold red3_1]{Emoji.Known.CrossMark} {Outcome.Deleted}[/]",
+            Outcome.Missing => $"[bold lightgoldenrod3]{Emoji.Known.MagnifyingGlassTiltedRight} {Outcome.Missing}[/]",
+            Outcome.Failed => $"[bold darkred]{Emoji.Known.Collision} {Outcome.Failed}[/]",
+            Outcome.Succeeded => $"[bold chartreuse2]{Emoji.Known.ThumbsUp} {Outcome.Succeeded}[/]",
             _ => "???"
         };
 

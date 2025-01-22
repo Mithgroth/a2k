@@ -11,6 +11,7 @@ public class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
         Helpers.Greet();
 
         var rootCommand = Helpers.WireUp<string, string, string, bool>(RunDeployment);
@@ -60,7 +61,7 @@ public class Program
                 var phase5 = root.AddNode($"[bold underline mediumpurple1]Phase V   - Testing Node Status[/]");
                 ctx.Refresh();
 
-                //AnsiConsole.MarkupLine("[bold green]Deployment completed![/]");
+                AnsiConsole.MarkupLine($"[bold green]{Emoji.Known.CheckMark} Deployment completed![/]");
             });
     }
 }
