@@ -11,7 +11,7 @@ internal static class Helpers
 {
     internal static void Greet()
     {
-        AnsiConsole.Write(new FigletText("a2k").Color(Color.Fuchsia).Centered());
+        AnsiConsole.Write(new FigletText("a2k").Color(Color.MediumPurple1).Centered());
         AnsiConsole.Write(new Markup("[slowblink plum4]Deploy .NET Aspire to Kubernetes![/]").Centered());
         AnsiConsole.WriteLine();
         AnsiConsole.Write(new Rule());
@@ -62,17 +62,6 @@ internal static class Helpers
 
         return rootCommand;
     }
-
-    internal static string PickColourForResult(ResourceOperationResult result) => result switch
-    {
-        ResourceOperationResult.Created => "green",
-        ResourceOperationResult.Exists => "white",
-        ResourceOperationResult.Replaced => "yellow",
-        ResourceOperationResult.Deleted => "red",
-        ResourceOperationResult.Missing => "gray",
-        ResourceOperationResult.Failed => "red",
-        _ => "white"
-    };
 }
 
 public static class ResultExtensions
@@ -96,7 +85,7 @@ public static class ResourceExtensions
         {
             var completedTask = await Task.WhenAny(tasks.Select(t => t.Task));
             var result = await completedTask;
-            
+
             result.WriteToConsole(ctx, node);
             tasks.RemoveAll(t => t.Task == completedTask);
         }

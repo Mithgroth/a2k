@@ -2,9 +2,16 @@
 
 namespace a2k.Shared.Models;
 
-public record Result(ResourceOperationResult OperationResult, IRenderable[] Messages);
+public record Result(Outcome Outcome, IRenderable[] Messages)
+{
+    public Result(Outcome Outcome, string ResourceName, Exception? Exception = null)
+        : this(Outcome, [Outcome.ToMarkup(ResourceName, Exception)])
+    {
 
-public enum ResourceOperationResult
+    }
+}
+
+public enum Outcome
 {
     Created,
     Exists,

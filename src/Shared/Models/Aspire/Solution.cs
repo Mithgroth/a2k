@@ -63,22 +63,24 @@ public sealed record Solution
         {
             Shell.Run("dotnet run --publisher manifest --output-path manifest.json");
 
-            return new(ResourceOperationResult.Created,
+            return new(Outcome.Created,
             [
-                new Markup($"[yellow]manifest.json file not found at {ManifestPath}, creating...[/]"),
-                new Markup("[green]manifest.json file created![/]")
+                new Markup($"[dim]manifest.json file not found at [/][yellow]{ManifestPath}[/][dim], creating...[/]"),
+                new Markup($"{Outcome.Created.ToMarkup()} [dim]manifest.json file![/]")
             ]);
         }
         else
         {
-            return new(ResourceOperationResult.Exists,
+            return new(Outcome.Exists,
             [
-                new Markup($"[gray]Loading manifest from:[/]"),
-                new TextPath(ManifestPath)
-                    .RootColor(Color.Wheat4)
-                    .SeparatorColor(Color.White)
-                    .StemColor(Color.Wheat4)
-                    .LeafColor(Color.Yellow)
+                new Rows(
+                    new Markup($"[dim]Loading manifest from:[/]"),
+                    new TextPath(ManifestPath)
+                        .RootColor(Color.Wheat4)
+                        .SeparatorColor(Color.White)
+                        .StemColor(Color.Wheat4)
+                        .LeafColor(Color.Yellow)
+                )
             ]);
         }
     }
@@ -89,7 +91,7 @@ public sealed record Solution
         var manifest = JsonSerializer.Deserialize<Manifest>(json, Defaults.JsonSerializerOptions);
         if (manifest is null)
         {
-            return new(ResourceOperationResult.Missing, 
+            return new(Outcome.Missing, 
             [
                 new Markup($"[red]Could not read manifest.json file at {ManifestPath}, make sure the file is a proper .NET Aspire manifest file.[/]")
             ]);
@@ -97,7 +99,7 @@ public sealed record Solution
 
         if (manifest?.Schema != Defaults.ASPIRE_SCHEMA)
         {
-            return new(ResourceOperationResult.Failed,
+            return new(Outcome.Failed,
             [
                 new Markup($"[red]Incorrect/missing $schema entry in manifest.json file at {ManifestPath}, .NET Aspire manifests are supposed to have \"$schema\":\"{Defaults.ASPIRE_SCHEMA}\" entry in manifest.[/]")
             ]);
@@ -105,7 +107,7 @@ public sealed record Solution
 
         if (manifest?.Resources.Count == 0)
         {
-            return new(ResourceOperationResult.Failed,
+            return new(Outcome.Failed,
             [
                 new Markup($"[red]Could not find any resources in manifest.json file at {ManifestPath}.[/]")
             ]);
@@ -119,11 +121,10 @@ public sealed record Solution
             Resources.Add(resource);
         }
 
-        return new(ResourceOperationResult.Succeeded,
+        return new(Outcome.Succeeded,
         [
-            new Markup($"[green]manifest.json loaded![/]")
+            new Markup($"[bold blue]manifest.json loaded![/]")
         ]);
-
 
         Resource ToResource(string resourceName, ManifestResource manifestResource)
             => manifestResource.ResourceType switch
@@ -178,29 +179,17 @@ public sealed record Solution
         try
         {
             await k8s.ReadNamespaceAsync(Name);
-            return new(ResourceOperationResult.Exists,
-            [
-                new Markup($"[bold gray]Checking namespace {Name} in Kubernetes[/]"),
-                new Markup($"[bold gray]Namespace {Name} exists in Kubernetes[/]")
-            ]);
+            return new(Outcome.Exists, Name);
         }
         catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             if (!shouldCreateIfNotExists)
             {
-                return new(ResourceOperationResult.Missing,
-                [
-                    new Markup($"[bold gray]Checking namespace {Name} in Kubernetes[/]"),
-                    new Markup($"[bold gray]Namespace {Name} is missing in Kubernetes[/]")
-                ]);
+                return new(Outcome.Missing, Name);
             }
 
             await k8s.CreateNamespaceAsync(Defaults.V1Namespace(Name, Env, Tag));
-            return new(ResourceOperationResult.Created,
-            [
-                new Markup($"[bold gray]Checking namespace {Name} in Kubernetes[/]"),
-                new Markup($"[bold green]Created namespace {Name} in Kubernetes![/]")
-            ]);
+            return new(Outcome.Created, Name);
         }
     }
 }

@@ -1,7 +1,6 @@
 using k8s;
 using k8s.Autorest;
 using k8s.Models;
-using Spectre.Console;
 using System.Net;
 
 namespace a2k.Shared.Models.Aspire;
@@ -43,25 +42,16 @@ public record Value(Solution Solution,
                 await k8s.DeleteNamespacedSecretAsync(secret.Metadata.Name, Solution.Name);
                 await k8s.CreateNamespacedSecretAsync(secret, Solution.Name);
 
-                return new(ResourceOperationResult.Replaced,
-                [
-                    new Markup($"[bold blue]Replaced secret value for {ResourceName}[/]"),
-                ]);
+                return new(Outcome.Replaced, ResourceName);
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
                 await k8s.CreateNamespacedSecretAsync(secret, Solution.Name);
-                return new(ResourceOperationResult.Created,
-                [
-                    new Markup($"[bold green]Created new secret value for {ResourceName}[/]"),
-                ]);
+                return new(Outcome.Created, ResourceName);
             }
             catch (Exception ex)
             {
-                return new(ResourceOperationResult.Failed,
-                [
-                    new Markup($"[bold red]Error deploying secret value {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]"),
-                ]);
+                return new(Outcome.Failed, ResourceName, ex);
             }
         }
         else
@@ -89,26 +79,17 @@ public record Value(Solution Solution,
                 await k8s.DeleteNamespacedConfigMapAsync(configMap.Metadata.Name, Solution.Name);
                 await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Name);
 
-                return new(ResourceOperationResult.Replaced,
-                [
-                    new Markup($"[bold blue]Replaced config value for {ResourceName}[/]"),
-                ]);
+                return new(Outcome.Replaced, ResourceName);
             }
             catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
             {
                 await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Name);
-                return new(ResourceOperationResult.Created,
-                [
-                    new Markup($"[bold green]Created new config value for {ResourceName}[/]"),
-                ]);
+                return new(Outcome.Created, ResourceName);
             }
             catch (Exception ex)
             {
-                return new(ResourceOperationResult.Failed,
-                [
-                    new Markup($"[bold red]Error deploying config value {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]"),
-                ]);
+                return new(Outcome.Failed, ResourceName, ex);
             }
         }
     }
-} 
+}

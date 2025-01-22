@@ -1,7 +1,6 @@
 ﻿using k8s;
 using k8s.Autorest;
 using k8s.Models;
-using Spectre.Console;
 using System.Net;
 
 namespace a2k.Shared.Models.Aspire;
@@ -128,38 +127,27 @@ public abstract record Resource(Solution Solution,
             if (Solution.UseVersioning)
             {
                 await k8s.ReplaceNamespacedDeploymentAsync(deployment, deployment.Metadata.Name, Solution.Name);
-                return new(ResourceOperationResult.Updated,
-                [
-                    new Markup($"[bold blue]Pushed a new revision for {ResourceName} deployment[/]"),
-                ]);
+                return new(Outcome.Updated, ResourceName);
             }
             else
             {
                 await k8s.DeleteNamespacedDeploymentAsync(deployment.Metadata.Name, Solution.Name);
                 await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Name);
 
-                return new(ResourceOperationResult.Replaced,
-                [
-                    new Markup($"[bold blue]Replaced deployment for {ResourceName}[/]"),
-                ]);
+                return new(Outcome.Replaced, ResourceName);
             }
         }
         catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
         {
             await k8s.CreateNamespacedDeploymentAsync(deployment, Solution.Name);
-            return new(ResourceOperationResult.Created,
-            [
-                new Markup($"[bold green]Created new deployment for {ResourceName}[/]"),
-            ]);
+            return new(Outcome.Created, ResourceName);
         }
         catch (Exception ex)
         {
-            return new(ResourceOperationResult.Failed,
-            [
-                new Markup($"[bold red]Error deploying {Markup.Escape(ResourceName)}: {Markup.Escape(ex.Message)}[/]"),
-            ]);
+            return new(Outcome.Failed, ResourceName, ex);
         }
 
+        // TODO: Fix
         if (Solution.UseVersioning == false)
         {
             Dockerfile.CleanupOldImages();
@@ -177,36 +165,24 @@ public abstract record Resource(Solution Solution,
             if (Solution.UseVersioning)
             {
                 await k8s.ReplaceNamespacedServiceAsync(service, service.Metadata.Name, Solution.Name);
-                return new(ResourceOperationResult.Updated,
-                [
-                    new Markup($"[bold blue]Pushed a new revision for {ResourceName} service[/]"),
-                ]);
+                return new(Outcome.Updated, ResourceName);
             }
             else
             {
                 await k8s.DeleteNamespacedServiceAsync(service.Metadata.Name, Solution.Name);
                 await k8s.CreateNamespacedServiceAsync(service, Solution.Name);
 ;
-                return new(ResourceOperationResult.Replaced,
-                [
-                    new Markup($"[bold blue]Replaced service for {ResourceName}[/]"),
-                ]);
+                return new(Outcome.Replaced, ResourceName);
             }
         }
         catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
         {
             await k8s.CreateNamespacedServiceAsync(service, Solution.Name);
-            return new(ResourceOperationResult.Created,
-            [
-                new Markup($"[bold green]Created new service for {ResourceName}[/]"),
-            ]);
+            return new(Outcome.Created, ResourceName);
         }
         catch (Exception ex)
         {
-            return new(ResourceOperationResult.Failed,
-            [
-                new Markup($"[bold red] Error deploying {ResourceName} service: {ex.Message}[/]"),
-            ]);
+            return new(Outcome.Failed, ResourceName, ex);
         }
     }
 }

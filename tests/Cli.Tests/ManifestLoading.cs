@@ -15,12 +15,12 @@ public class Test
     }
 
     [Theory]
-    [InlineData("valid-manifest.json", 2, ResourceOperationResult.Succeeded)]
-    [InlineData("missing-resource.json", 0, ResourceOperationResult.Failed)]
+    [InlineData("valid-manifest.json", 2, Outcome.Succeeded)]
+    [InlineData("missing-resource.json", 0, Outcome.Failed)]
     // TODO: Add .Missing case test
     public async Task LoadManifests(string fileName,
                                     int expectedResourceCount,
-                                    ResourceOperationResult expectedResult)
+                                    Outcome expectedResult)
     {
         // Arrange
         var manifestPath = Path.Combine(TestManifestsPath, fileName);
@@ -34,7 +34,7 @@ public class Test
 
         // Assert
         Assert.Equal(expectedResourceCount, solution.Resources.Count);
-        Assert.Equal(expectedResult, result.OperationResult);
+        Assert.Equal(expectedResult, result.Outcome);
     }
 
     [Fact]
