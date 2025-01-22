@@ -63,11 +63,7 @@ public sealed record Solution
         {
             Shell.Run("dotnet run --publisher manifest --output-path manifest.json");
 
-            return new(Outcome.Created,
-            [
-                new Markup($"[dim]manifest.json file not found at [/][yellow]{ManifestPath}[/][dim], creating...[/]"),
-                new Markup($"{Outcome.Created.ToMarkup()} [dim]manifest.json file![/]")
-            ]);
+            return new(Outcome.Created, "manifest.json");
         }
         else
         {
