@@ -1,4 +1,5 @@
 ﻿using Aspire.Hosting;
+using k8s.Models;
 using Spectre.Console;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -42,27 +43,36 @@ public record Project(Solution Solution,
         return baseResult;
     }
 
-    //public override V1Service ToKubernetesService()
-    //{
-    //    var resource = Defaults.V1Service(ResourceName, Solution.Env, Solution.Tag);
+    public override V1Service ToKubernetesService()
+    {
+        var resource = Defaults.V1Service(ResourceName, Solution.Env, Solution.Tag);
         
-    //    // Check if we have any external bindings
-    //    var hasExternalBindings = Bindings?.Values.Any(b => b.External ?? false) ?? false;
+        // Check if we have any external bindings
+        var hasExternalBindings = Bindings?.Values.Any(b => b.External ?? false) ?? false;
         
-    //    // Try to get port from launchSettings.json if we have bindings
-    //    var port = GetProjectPort() ?? 80;
+        // Try to get port from launchSettings.json if we have bindings
+        var port = GetProjectPort() ?? 80;
 
-    //    resource.Spec = new V1ServiceSpec
-    //    {
-    //        Type = "ClusterIP",
-    //        Selector = Defaults.SelectorLabels(Solution.Env),
-    //        Ports = [new() { Port = port, TargetPort = 80 }] // targetPort is always 80 (container port)
-    //    };
+        resource.Spec = new V1ServiceSpec
+        {
+            Type = hasExternalBindings ? "NodePort" : "ClusterIP",
+            //Selector = Defaults.SelectorLabels(Solution.Env),
+            Selector = Defaults.Labels(Solution.Env, Solution.Tag),
+            Ports = 
+            [
+                new V1ServicePort 
+                { 
+                    Port = port,
+                    TargetPort = Bindings?.Values
+                        .FirstOrDefault(b => b.TargetPort.HasValue)?.TargetPort ?? 80
+                }
+            ]
+        };
 
-    //    return resource;
-    //}
+        return resource;
+    }
 
-    private int? GetProjectPort()
+    public int? GetProjectPort()
     {
         // Only look for ports if we have bindings marked as external
         if (Bindings == null || !Bindings.Values.Any(b => b.External ?? false))

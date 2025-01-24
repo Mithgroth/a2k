@@ -52,16 +52,12 @@ public class Program
 
                 var phase4 = root.AddNode($"[bold underline mediumpurple1]Phase IV  - Configuring Ingress Bindings[/]");
                 ctx.Refresh();
-                // WIP:
-                // CHECK IF WE HAVE ANY EXTERNAL BINDINGS
-                // --> TURN THEM INTO INGRESS RULES
-                // --> INSTALL TRAEFIK
-                // --> DEPLOY INGRESS RULES
+                await solution.HandleExternalBindings(k8s, ctx, phase4);
 
                 var phase5 = root.AddNode($"[bold underline mediumpurple1]Phase V   - Testing Node Status[/]");
                 ctx.Refresh();
 
-                AnsiConsole.MarkupLine($"[bold green]{Emoji.Known.CheckMark} Deployment completed![/]");
+                root.AddNode($"[bold green]{Emoji.Known.CheckMark} Deployment completed![/]");
             });
     }
 }

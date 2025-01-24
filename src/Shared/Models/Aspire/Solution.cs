@@ -188,4 +188,16 @@ public sealed record Solution
             return new(Outcome.Created, Name);
         }
     }
+
+    public IReadOnlyList<(Resource Resource, int Port)> GetExternalBindings()
+    {
+        return Resources
+            .Where(r => r is Project)  // Only look at Project resources
+            .Cast<Project>()
+            .SelectMany(p => p.Bindings?.Values
+                .Where(b => (b.External ?? false) && b.Scheme == "https")  // Only HTTPS bindings
+                .Select(_ => (Resource: p as Resource, Port: p.GetProjectPort() ?? 80)) 
+                ?? [])
+            .ToList();
+    }
 }
