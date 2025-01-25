@@ -1,6 +1,7 @@
 ﻿using a2k.Shared.Models;
 using Spectre.Console;
 using System.Net.NetworkInformation;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
 namespace a2k.Shared;
@@ -94,5 +95,23 @@ public static class Utility
                 return port;
             }
         }
+    }
+
+    private static readonly string AllowedChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    public static string GenerateSecureString(int minLength)
+    {
+        var length = Math.Max(minLength, 22); // Ensure minimum length of 22 for security
+        var bytes = new byte[length];
+
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(bytes);
+        }
+
+        var chars = bytes
+            .Select(b => AllowedChars[b % AllowedChars.Length])
+            .ToArray();
+
+        return new string(chars);
     }
 }

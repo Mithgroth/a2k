@@ -1,6 +1,7 @@
 ﻿using k8s;
 using Spectre.Console;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace a2k.Shared.Models.Aspire;
 
@@ -47,6 +48,9 @@ public sealed record Solution
     /// </summary>
     public List<Resource> Resources { get; set; } = [];
 
+    private readonly Dictionary<string, string> _resolvedValues = [];
+    private readonly Dictionary<string, string> _generatedSecrets = [];
+
     public Solution(string appHostPath, string? name, string env, bool useVersioning = false)
     {
         AppHostPath = appHostPath ?? throw new ArgumentNullException(nameof(appHostPath));
@@ -89,7 +93,7 @@ public sealed record Solution
         {
             return new(Outcome.Missing, 
             [
-                new Markup($"[red]Could not read manifest.json file at {ManifestPath}, make sure the file is a proper .NET Aspire manifest file.[/]")
+                new Markup($"[red]Could not read manifest.json file at {ManifestPath}[/]")
             ]);
         }
 
@@ -116,6 +120,8 @@ public sealed record Solution
             var resource = ToResource(resourceName, manifestResource);
             Resources.Add(resource);
         }
+
+        ProcessBindings();
 
         return new(Outcome.Succeeded,
         [
@@ -199,5 +205,115 @@ public sealed record Solution
                 .Select(_ => (Resource: p as Resource, Port: p.GetProjectPort() ?? 80)) 
                 ?? [])
             .ToList();
+    }
+
+    private void ProcessBindings()
+    {
+        // First, resolve all parameters and secrets
+        foreach (var resource in Resources.OfType<Parameter>())
+        {
+            var manifestResource = Manifest!.Resources[resource.ResourceName];
+            if (manifestResource.Value.Contains("inputs.value"))
+            {
+                var input = manifestResource.Inputs["value"];
+                if (input.Secret && input.Default?.Generate != null)
+                {
+                    _generatedSecrets[resource.ResourceName] = Utility.GenerateSecureString(input.Default.Generate.MinLength);
+                }
+            }
+        }
+
+        // Then, resolve all connection strings
+        foreach (var resource in Resources)
+        {
+            var manifestResource = Manifest!.Resources[resource.ResourceName];
+            if (!string.IsNullOrEmpty(manifestResource.ConnectionString))
+            {
+                _resolvedValues[$"{resource.ResourceName}.connectionString"] = ResolveConnectionString(manifestResource.ConnectionString);
+            }
+        }
+
+        // Finally, update all resources with resolved values
+        foreach (var resource in Resources)
+        {
+            if (resource.Env != null)
+            {
+                foreach (var (key, value) in resource.Env.ToList())
+                {
+                    resource.Env[key] = ResolveValue(value);
+                }
+            }
+        }
+    }
+
+    private string ResolveConnectionString(string template)
+    {
+        // First resolve any bindings in the template
+        var resolvedTemplate = ResolveValue(template);
+        
+        // If this is a fully resolved string, return it
+        if (!resolvedTemplate.Contains('{'))
+        {
+            return resolvedTemplate;
+        }
+
+        // Otherwise, try one more pass to resolve any remaining placeholders
+        return ResolveValue(resolvedTemplate);
+    }
+
+    private string ResolveValue(string value)
+    {
+        return !value.Contains('{')
+            ? value
+            : Regex.Replace(value, @"\{([^}]+)\}", match =>
+        {
+            var placeholder = match.Groups[1].Value;
+            var parts = placeholder.Split('.');
+
+            if (parts.Length < 2)
+            {
+                return match.Value;
+            }
+
+            var resourceName = parts[0];
+            var bindingType = parts[1];
+
+            return bindingType switch
+            {
+                "value" => _generatedSecrets.GetValueOrDefault(resourceName, match.Value),
+                "connectionString" => _resolvedValues.GetValueOrDefault($"{resourceName}.connectionString", match.Value),
+                "bindings" => ResolveBinding(resourceName, parts[2], parts[3]),
+                _ => match.Value
+            };
+        });
+    }
+
+    private string ResolveBinding(string resourceName, string bindingName, string property)
+    {
+        var resource = Resources.First(r => r.ResourceName == resourceName);
+        var binding = resource.Bindings?[bindingName] 
+            ?? throw new InvalidOperationException($"No binding {bindingName} found for resource {resourceName}");
+
+        // For tcp bindings (like postgres), always use targetPort
+        if (binding.Protocol == "tcp" && binding.Transport != "http")
+        {
+            return property switch
+            {
+                "host" => $"{resourceName}-service.{Name}.svc.cluster.local",
+                "port" => binding.TargetPort?.ToString() ?? binding.Port?.ToString() ?? "80",
+                "targetPort" => binding.TargetPort?.ToString() ?? "80",
+                _ => throw new InvalidOperationException($"Unknown binding property {property}")
+            };
+        }
+
+        // For http/https bindings
+        return property switch
+        {
+            "host" => $"{resourceName}.{Name}.local",
+            "port" => binding.Port?.ToString() ?? binding.TargetPort?.ToString() ?? "80",
+            "targetPort" => binding.TargetPort?.ToString() ?? "80",
+            "url" => $"{binding.Scheme}://{resourceName}.{Name}.local:{binding.Port ?? binding.TargetPort ?? 80}",
+            _ => throw new InvalidOperationException($"Unknown binding property {property}")
+        };
     }
 }
