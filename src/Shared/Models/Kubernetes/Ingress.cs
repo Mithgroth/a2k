@@ -32,8 +32,7 @@ public static class Ingress
                             [
                                 new V1HTTPIngressPath
                                 {
-                                    //Path = $"/{binding.Resource.ResourceName}",
-                                    Path = $"/",
+                                    Path = "/",
                                     PathType = "Prefix",
                                     Backend = new V1IngressBackend
                                     {

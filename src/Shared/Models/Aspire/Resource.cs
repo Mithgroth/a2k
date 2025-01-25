@@ -26,31 +26,6 @@ public abstract record Resource(Solution Solution,
 
     public virtual V1Deployment ToKubernetesDeployment()
     {
-        // Figure out a port from the "bindings" if present
-        // For a simple example, pick the first binding that has a targetPort.
-        var port = 80; // default
-        if (Bindings != null)
-        {
-            foreach (var b in Bindings.Values)
-            {
-                if (b.TargetPort.HasValue)
-                {
-                    port = b.TargetPort.Value;
-                    break;
-                }
-            }
-        }
-
-        // Convert env dict to list
-        var containerEnv = new List<V1EnvVar>();
-        if (Env != null)
-        {
-            foreach (var (key, value) in Env)
-            {
-                containerEnv.Add(new V1EnvVar(key, value));
-            }
-        }
-
         var resource = Defaults.V1Deployment(ResourceName, Solution.Env, Solution.Tag);
         resource.Spec = new V1DeploymentSpec
         {
@@ -77,9 +52,9 @@ public abstract record Resource(Solution Solution,
                                 ImagePullPolicy = Dockerfile?.ShouldBuildWithDocker == true ? "Never" : "IfNotPresent",
                                 Ports =
                                 [
-                                    new(port)
+                                    new(Bindings?.Values.FirstOrDefault(b => b.TargetPort.HasValue)?.TargetPort ?? 80)
                                 ],
-                                Env = containerEnv
+                                Env = Env?.Select(kvp => new V1EnvVar(kvp.Key, kvp.Value)).ToList() ?? []
                             }
                         ]
                 }
