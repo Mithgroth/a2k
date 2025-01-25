@@ -2,7 +2,6 @@
 using a2k.Shared.Models.Aspire;
 using a2k.Shared.Models.Kubernetes;
 using k8s;
-using k8s.Models;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;
@@ -119,91 +118,30 @@ public static class ResourceExtensions
             return;
         }
 
-        // Deploy Traefik
+        // Deploy Traefik if not exists
         try
         {
             await k8s.ReadNamespacedDeploymentAsync("traefik-deployment", "kube-system");
             phase.AddNode("[blue]Traefik is already installed[/]");
-            phase.AddNode("[green]Traefik dashboard available at http://localhost:8080[/]");
-            phase.AddNode("[green]Services will be available through http://localhost:32080[/]");
         }
         catch (k8s.Autorest.HttpOperationException)
         {
             phase.AddNode("[yellow]Installing Traefik...[/]");
             await Traefik.Deploy(k8s);
             phase.AddNode("[green]Traefik installed successfully[/]");
-            phase.AddNode("[green]Traefik dashboard available at http://localhost:8080[/]");
-            phase.AddNode("[green]Services will be available through http://localhost:32080[/]");
         }
 
-        // Create ingress rules for each external binding
-        foreach (var (resource, port) in externalBindings)
+        // Create single ingress for all services
+        try
         {
-            var ingressName = $"{resource.ResourceName}-ingress";
-            try
-            {
-                // Check if ingress already exists
-                try
-                {
-                    await k8s.ReadNamespacedIngressAsync(ingressName, solution.Name);
-                    phase.AddNode($"[blue]Ingress rule already exists for {resource.ResourceName}[/]");
-                    continue;
-                }
-                catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    var ingressRule = new V1Ingress
-                    {
-                        ApiVersion = "networking.k8s.io/v1",
-                        Kind = "Ingress",
-                        Metadata = new V1ObjectMeta
-                        {
-                            Name = ingressName,
-                            Annotations = new Dictionary<string, string>
-                            {
-                                ["traefik.ingress.kubernetes.io/router.entrypoints"] = "web"
-                            }
-                        },
-                        Spec = new V1IngressSpec
-                        {
-                            IngressClassName = "traefik",
-                            Rules =
-                            [
-                                new()
-                                {
-                                    Host = "api.temizapp.local", // Define your custom host
-                                    Http = new V1HTTPIngressRuleValue
-                                    {
-                                        Paths =
-                                        [
-                                            new()
-                                            {
-                                                Path = "/",
-                                                PathType = "Prefix",
-                                                Backend = new V1IngressBackend
-                                                {
-                                                    Service = new V1IngressServiceBackend
-                                                    {
-                                                        Name = $"{resource.ResourceName}-service",
-                                                        Port = new V1ServiceBackendPort { Number = port }
-                                                    }
-                                                }
-                                            }
-                                        ]
-                                    }
-                                }
-                            ]
-                        }
-                    };
-
-                    await k8s.CreateNamespacedIngressAsync(ingressRule, solution.Name);
-                    phase.AddNode($"[green]Created ingress rule for {resource.ResourceName}[/]");
-                    phase.AddNode($"[green]Service available at http://localhost:32080[/]");
-                }
-            }
-            catch (Exception ex)
-            {
-                phase.AddNode($"[red]Failed to create ingress for {resource.ResourceName}: {ex.Message}[/]");
-            }
+            var ingress = Ingress.Create(solution.Name, externalBindings);
+            await k8s.CreateNamespacedIngressAsync(ingress, solution.Name);
+            phase.AddNode("[green]Created centralized ingress rules[/]");
+            phase.AddNode($"[green]Services available at http://localhost:32080/service-name[/]");
+        }
+        catch (Exception ex)
+        {
+            phase.AddNode($"[red]Failed to create ingress: {ex.Message}[/]");
         }
     }
 }

@@ -2,7 +2,6 @@
 using k8s.Models;
 using Spectre.Console;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace a2k.Shared.Models.Aspire;
 
@@ -46,25 +45,20 @@ public record Project(Solution Solution,
     public override V1Service ToKubernetesService()
     {
         var resource = Defaults.V1Service(ResourceName, Solution.Env, Solution.Tag);
-        
-        // Check if we have any external bindings
-        var hasExternalBindings = Bindings?.Values.Any(b => b.External ?? false) ?? false;
-        
-        // Try to get port from launchSettings.json if we have bindings
-        var port = GetProjectPort() ?? 80;
+
+        // Get the port from bindings or defaults
+        var port = GetProjectPort() ?? throw new InvalidOperationException($"No valid port found for {ResourceName}");
 
         resource.Spec = new V1ServiceSpec
         {
-            Type = hasExternalBindings ? "NodePort" : "ClusterIP",
-            //Selector = Defaults.SelectorLabels(Solution.Env),
+            Type = "ClusterIP",
             Selector = Defaults.Labels(Solution.Env, Solution.Tag),
-            Ports = 
+            Ports =
             [
-                new V1ServicePort 
-                { 
+                new V1ServicePort
+                {
                     Port = port,
-                    TargetPort = Bindings?.Values
-                        .FirstOrDefault(b => b.TargetPort.HasValue)?.TargetPort ?? 80
+                    TargetPort = Bindings?.Values.FirstOrDefault(b => b.TargetPort.HasValue)?.TargetPort ?? 80
                 }
             ]
         };
@@ -74,20 +68,17 @@ public record Project(Solution Solution,
 
     public int? GetProjectPort()
     {
-        // Only look for ports if we have bindings marked as external
         if (Bindings == null || !Bindings.Values.Any(b => b.External ?? false))
         {
             return null;
         }
 
-        // First check if any external binding has a port specified
         var bindingWithPort = Bindings.Values.FirstOrDefault(b => b.External ?? false && b.Port.HasValue);
         if (bindingWithPort?.Port != null)
         {
             return bindingWithPort.Port;
         }
 
-        // If no port in manifest, check launchSettings.json
         var projectDir = Path.GetDirectoryName(CsProjPath);
         var launchSettingsPath = Path.Combine(projectDir!, "Properties", "launchSettings.json");
 
@@ -96,57 +87,29 @@ public record Project(Solution Solution,
             try
             {
                 var launchSettings = JsonSerializer.Deserialize<LaunchSettings>(
-                    File.ReadAllText(launchSettingsPath), 
+                    File.ReadAllText(launchSettingsPath),
                     Defaults.JsonSerializerOptions);
 
                 foreach (var profile in launchSettings?.Profiles?.Values ?? Enumerable.Empty<LaunchProfile>())
                 {
-                    if (string.IsNullOrEmpty(profile.ApplicationUrl))
+                    if (!string.IsNullOrEmpty(profile.ApplicationUrl))
                     {
-                        continue;
-                    }
-
-                    var urls = profile.ApplicationUrl.Split(';');
-
-                    // Try to find an HTTP URL first if we have an HTTP binding
-                    if (Bindings.Values.Any(b => (b.External ?? false) && b.Scheme == "http"))
-                    {
-                        var httpUrl = urls.FirstOrDefault(u => u.StartsWith("http://"));
-                        if (httpUrl != null)
+                        var urls = profile.ApplicationUrl.Split(';');
+                        var url = urls.FirstOrDefault(u => u.StartsWith("http://") || u.StartsWith("https://"));
+                        if (url != null)
                         {
-                            return ExtractPort(httpUrl);
-                        }
-                    }
-
-                    // If no HTTP URL found or we only have HTTPS binding, use the first HTTPS URL
-                    if (Bindings.Values.Any(b => (b.External ?? false) && b.Scheme == "https"))
-                    {
-                        var httpsUrl = urls.FirstOrDefault(u => u.StartsWith("https://"));
-                        if (httpsUrl != null)
-                        {
-                            return ExtractPort(httpsUrl);
+                            return Utility.ExtractPort(url);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning: Could not read launch settings for {ResourceName}: {ex.Message}[/]");
+                AnsiConsole.MarkupLine($"[yellow]Warning: Could not read launch settings for {ResourceName}. Falling back to random port. Details: {ex.Message}[/]");
             }
         }
 
-        // If we have external bindings but no port specified anywhere, generate a random port
-        return Utility.GenerateRandomPort();
-
-        static int ExtractPort(string url)
-        {
-            var match = Regex.Match(url, @":(\d+)");
-            if (match.Success && int.TryParse(match.Groups[1].Value, out var port))
-            {
-                return port;
-            }
-
-            throw new InvalidOperationException("Invalid port format in launch settings");
-        }
+        return Utility.GenerateAvailablePort();
     }
+
 }

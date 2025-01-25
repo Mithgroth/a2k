@@ -1,11 +1,13 @@
 ﻿using a2k.Shared.Models;
 using Spectre.Console;
+using System.Net.NetworkInformation;
+using System.Text.RegularExpressions;
 
 namespace a2k.Shared;
 
 public static class Utility
 {
-    public static string ToKebabCase(this string input) 
+    public static string ToKebabCase(this string input)
         => string.IsNullOrEmpty(input)
         ? input
         : string.Concat(input.Select((x, i) => i > 0 && char.IsUpper(x) ? "-" + x.ToString() : x.ToString()))
@@ -35,7 +37,7 @@ public static class Utility
         var year = now.Year.ToString().Substring(2, 2);
         var dayOfYear = now.DayOfYear.ToString("D3");
         var time = now.ToString("HHmmss");
-        
+
         return $"{year}{dayOfYear}{time}";
     }
 
@@ -68,4 +70,29 @@ public static class Utility
             Outcome.Succeeded => new Markup($"[yellow]{resourceName}[/] {Outcome.Succeeded.ToMarkup()}"),
             _ => new("???")
         };
+
+    public static int ExtractPort(string url)
+    {
+        var match = Regex.Match(url, @":(\d+)");
+        if (match.Success && int.TryParse(match.Groups[1].Value, out var port))
+        {
+            return port;
+        }
+
+        throw new InvalidOperationException("Invalid port format in launch settings");
+    }
+
+    public static int GenerateAvailablePort()
+    {
+        while (true)
+        {
+            var port = Random.Shared.Next(30000, 40000);
+
+            var activeTcpListeners = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners();
+            if (!activeTcpListeners.Any(ep => ep.Port == port))
+            {
+                return port;
+            }
+        }
+    }
 }

@@ -137,7 +137,10 @@ public static class Traefik
                                 Args =
                                 [
                                     "--api.insecure",
-                                    "--providers.kubernetesingress"
+                                    "--providers.kubernetesingress",
+                                    "--entrypoints.web.address=:80",
+                                    "--entrypoints.websecure.address=:443",
+                                    "--entrypoints.dashboard.address=:8081"
                                 ],
                                 Ports =
                                 [
