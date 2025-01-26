@@ -5,7 +5,7 @@ namespace a2k.Shared;
 
 public static class Shell
 {
-    public static string Run(string command, string? workingDirectory = null, bool writeToOutput = true, bool throwOnError = true)
+    public static string Run(string command, string? workingDirectory = null, bool writeToOutput = false, bool throwOnError = true)
     {
         if (string.IsNullOrEmpty(command))
         {
