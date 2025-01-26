@@ -55,6 +55,7 @@ public static class Utility
             Outcome.Missing => $"[bold lightgoldenrod3]{Emoji.Known.MagnifyingGlassTiltedRight} {Outcome.Missing}[/]",
             Outcome.Failed => $"[bold darkred]{Emoji.Known.Collision} {Outcome.Failed}[/]",
             Outcome.Succeeded => $"[bold chartreuse2]{Emoji.Known.ThumbsUp} {Outcome.Succeeded}[/]",
+            Outcome.Skipped => $"[bold gray]{Emoji.Known.Balloon} {Outcome.Skipped}[/]",
             _ => "???"
         };
 
@@ -69,6 +70,7 @@ public static class Utility
             Outcome.Missing => new Markup($"{Outcome.Missing.ToMarkup()} [yellow]{resourceName}[/]"),
             Outcome.Failed => new Markup($"{Outcome.Failed.ToMarkup()} [yellow]{resourceName}[/]: [dim]: {Markup.Escape(ex.Message)}[/]"),
             Outcome.Succeeded => new Markup($"[yellow]{resourceName}[/] {Outcome.Succeeded.ToMarkup()}"),
+            Outcome.Skipped => new Markup($"{Outcome.Skipped.ToMarkup()} [yellow]{resourceName}[/]"),
             _ => new("???")
         };
 

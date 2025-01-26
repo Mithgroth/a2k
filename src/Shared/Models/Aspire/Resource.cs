@@ -188,6 +188,11 @@ public abstract record Resource(Solution Solution,
 
     public virtual async Task<Result> DeployConfigMap(k8s.Kubernetes k8s)
     {
+        if (ResourceType is not AspireResourceTypes.Project and not AspireResourceTypes.Container)
+        {
+            return new(Outcome.Skipped, ResourceName);
+        }
+
         var configMap = ToKubernetesConfigMap();
 
         try

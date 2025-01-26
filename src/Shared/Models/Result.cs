@@ -19,6 +19,7 @@ public enum Outcome
     Updated,
     Deleted,
     Missing,
+    Skipped,
     Failed,
     Succeeded,
 }
