@@ -44,19 +44,28 @@ public abstract record Resource(Solution Solution,
                 Spec = new V1PodSpec
                 {
                     Containers =
-                        [
-                            new()
-                            {
-                                Name = ResourceName,
-                                Image = Dockerfile?.FullImageName,
-                                ImagePullPolicy = Dockerfile?.ShouldBuildWithDocker == true ? "Never" : "IfNotPresent",
-                                Ports =
-                                [
-                                    new(Bindings?.Values.FirstOrDefault(b => b.TargetPort.HasValue)?.TargetPort ?? 80)
-                                ],
-                                Env = Env?.Select(kvp => new V1EnvVar(kvp.Key, kvp.Value)).ToList() ?? []
-                            }
-                        ]
+                    [
+                        new()
+                        {
+                            Name = ResourceName,
+                            Image = Dockerfile?.FullImageName,
+                            ImagePullPolicy = Dockerfile?.ShouldBuildWithDocker == true ? "Never" : "IfNotPresent",
+                            Ports =
+                            [
+                                new(Bindings?.Values.FirstOrDefault(b => b.TargetPort.HasValue)?.TargetPort ?? 80)
+                            ],
+                            EnvFrom = 
+                            [
+                                new V1EnvFromSource
+                                {
+                                    ConfigMapRef = new V1ConfigMapEnvSource
+                                    {
+                                        Name = $"{ResourceName}-config"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
                 }
             }
         };
@@ -91,9 +100,30 @@ public abstract record Resource(Solution Solution,
         return resource;
     }
 
+    public virtual V1ConfigMap ToKubernetesConfigMap()
+    {
+        var data = new Dictionary<string, string>();
+        if (Env != null)
+        {
+            foreach (var (key, value) in Env)
+            {
+                data[$"{key}"] = value;
+            }
+        }
+
+        return new V1ConfigMap
+        {
+            Metadata = new V1ObjectMeta
+            {
+                Name = $"{ResourceName}-config",
+                Labels = Defaults.Labels(Solution.Env, Solution.Tag)
+            },
+            Data = data
+        };
+    }
+
     public virtual async Task<Result> DeployResource(k8s.Kubernetes k8s)
     {
-
         var deployment = ToKubernetesDeployment();
 
         try
@@ -148,6 +178,26 @@ public abstract record Resource(Solution Solution,
         catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
         {
             await k8s.CreateNamespacedServiceAsync(service, Solution.Name);
+            return new(Outcome.Created, ResourceName);
+        }
+        catch (Exception ex)
+        {
+            return new(Outcome.Failed, ResourceName, ex);
+        }
+    }
+
+    public virtual async Task<Result> DeployConfigMap(k8s.Kubernetes k8s)
+    {
+        var configMap = ToKubernetesConfigMap();
+
+        try
+        {
+            await k8s.ReplaceNamespacedConfigMapAsync(configMap, configMap.Metadata.Name, Solution.Name);
+            return new(Outcome.Updated, $"ConfigMap/{ResourceName}-config");
+        }
+        catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
+        {
+            await k8s.CreateNamespacedConfigMapAsync(configMap, Solution.Name);
             return new(Outcome.Created, ResourceName);
         }
         catch (Exception ex)

@@ -316,4 +316,20 @@ public sealed record Solution
             _ => throw new InvalidOperationException($"Unknown binding property {property}")
         };
     }
+
+    public async Task<Result> CheckConfigMaps(k8s.Kubernetes k8s)
+    {
+        var results = new List<Result>();
+
+        foreach (var resource in Resources)
+        {
+            var result = await resource.DeployConfigMap(k8s);
+            results.Add(result);
+        }
+
+        return new(
+            results.Any(r => r.Outcome == Outcome.Failed) ? Outcome.Failed : Outcome.Succeeded,
+            results.SelectMany(r => r.Messages).ToArray()
+        );
+    }
 }
