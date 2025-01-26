@@ -6,6 +6,13 @@ namespace a2k.Shared;
 
 public static class Defaults
 {
+    public const string ROOT = "[bold lightseagreen]Deploying resources to Kubernetes[/]";
+    public const string PHASE_I = "[bold underline mediumpurple1]Phase I   - Preparing[/]";
+    public const string PHASE_II = "[bold underline mediumpurple1]Phase II  - Deploying Resources[/]";
+    public const string PHASE_III = "[bold underline mediumpurple1]Phase III - Deploying Services for Resources[/]";
+    public const string PHASE_IV = "[bold underline mediumpurple1]Phase IV  - Configuring Ingress Bindings[/]";
+    public const string PHASE_V = "[bold underline mediumpurple1]Phase V   - Testing Node Status[/]";
+
     public const string ASPIRE_SCHEMA = "https://json.schemastore.org/aspire-8.0.json";
     public const string LAUNCH_SETTINGS_SCHEMA = "http://json.schemastore.org/launchsettings.json";
 
