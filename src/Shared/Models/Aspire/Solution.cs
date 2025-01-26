@@ -207,34 +207,41 @@ public sealed record Solution
             .ToList();
     }
 
+    // TODO: Not really happy with this method, needs refactor
     private void ProcessBindings()
     {
-        // First, resolve all parameters and secrets
-        foreach (var resource in Resources.OfType<Parameter>())
+        foreach (var resource in Resources.Where(r => r.ResourceType is AspireResourceTypes.Parameter or AspireResourceTypes.Value))
         {
             var manifestResource = Manifest!.Resources[resource.ResourceName];
-            if (manifestResource.Value.Contains("inputs.value"))
+            
+            if (resource.ResourceType == AspireResourceTypes.Parameter && 
+                manifestResource.Value?.Contains("inputs.value") == true)
             {
                 var input = manifestResource.Inputs["value"];
                 if (input.Secret && input.Default?.Generate != null)
                 {
-                    _generatedSecrets[resource.ResourceName] = Utility.GenerateSecureString(input.Default.Generate.MinLength);
+                    _generatedSecrets[resource.ResourceName] = 
+                        Utility.GenerateSecureString(input.Default.Generate.MinLength);
                 }
+            }
+            
+            if (!string.IsNullOrEmpty(manifestResource.Value))
+            {
+                _resolvedValues[resource.ResourceName] = ResolveValue(manifestResource.Value);
             }
         }
 
-        // Then, resolve all connection strings
         foreach (var resource in Resources)
         {
             var manifestResource = Manifest!.Resources[resource.ResourceName];
             if (!string.IsNullOrEmpty(manifestResource.ConnectionString))
             {
-                _resolvedValues[$"{resource.ResourceName}.connectionString"] = ResolveConnectionString(manifestResource.ConnectionString);
+                _resolvedValues[$"{resource.ResourceName}.connectionString"] = 
+                    ResolveConnectionString(manifestResource.ConnectionString);
             }
         }
 
-        // Finally, update all resources with resolved values
-        foreach (var resource in Resources)
+        foreach (var resource in Resources.Where(r => r.ResourceType is AspireResourceTypes.Project or AspireResourceTypes.Container))
         {
             if (resource.Env != null)
             {
@@ -317,11 +324,48 @@ public sealed record Solution
         };
     }
 
-    public async Task<Result> CheckConfigMaps(k8s.Kubernetes k8s)
+    public async Task<Result> DeployConfigurations(k8s.Kubernetes k8s)
     {
         var results = new List<Result>();
+        foreach (var resource in Resources.Where(r => r.ResourceType is AspireResourceTypes.Parameter or AspireResourceTypes.Value))
+        {
+            var manifestResource = Manifest!.Resources[resource.ResourceName];
+            var isSecret = manifestResource.Inputs?.TryGetValue("value", out var input) == true && input.Secret;
 
-        foreach (var resource in Resources)
+            try
+            {
+                if (isSecret)
+                {
+                    var secret = Defaults.V1Secret(
+                        resource.ResourceName, 
+                        Env, 
+                        Tag, 
+                        _resolvedValues.GetValueOrDefault(resource.ResourceName)
+                            ?? _generatedSecrets.GetValueOrDefault(resource.ResourceName)
+                            ?? manifestResource.Value);
+
+                    await k8s.CreateNamespacedSecretAsync(secret, Name);
+                    results.Add(new(Outcome.Created, $"Secret/{resource.ResourceName}"));
+                }
+                else
+                {
+                    var configMap = Defaults.V1ConfigMap(
+                        resource.ResourceName, 
+                        Env, 
+                        Tag, 
+                        _resolvedValues.GetValueOrDefault(resource.ResourceName) ?? manifestResource.Value);
+
+                    await k8s.CreateNamespacedConfigMapAsync(configMap, Name);
+                    results.Add(new(Outcome.Created, $"ConfigMap/{resource.ResourceName}"));
+                }
+            }
+            catch (Exception ex)
+            {
+                results.Add(new(Outcome.Failed, resource.ResourceName, ex));
+            }
+        }
+
+        foreach (var resource in Resources.Where(r => r.ResourceType is AspireResourceTypes.Project or AspireResourceTypes.Container))
         {
             var result = await resource.DeployConfigMap(k8s);
             results.Add(result);

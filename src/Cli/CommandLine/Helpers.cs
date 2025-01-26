@@ -79,6 +79,7 @@ public static class ResourceExtensions
     public static async Task Deploy(this List<Resource> resources, Kubernetes k8s, LiveDisplayContext ctx, TreeNode node)
     {
         var tasks = resources
+                    .Where(r => r.ResourceType is AspireResourceTypes.Project or AspireResourceTypes.Container)
                     .Select(x => new { Resource = x, Task = x.DeployResource(k8s) })
                     .ToList();
 

@@ -44,7 +44,7 @@ public class Program
                 var phase2 = root.AddNode($"[bold underline mediumpurple1]Phase II  - Deploying Resources[/]");
                 ctx.Refresh();
 
-                result = await solution.CheckConfigMaps(k8s);
+                result = await solution.DeployConfigurations(k8s);
                 result.WriteToConsole(ctx, phase2);
 
                 // TODO: Fix the bug "[bold lightseagreen]Deploying resources to Kubernetes[/]" being doubled somehow

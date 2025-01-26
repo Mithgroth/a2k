@@ -62,6 +62,34 @@ public static class Defaults
             }
         };
 
+    public static V1Secret V1Secret(string resourceName, string env, string version, string data)
+        => new()
+        {
+            Metadata = new V1ObjectMeta
+            {
+                Name = resourceName,
+                Labels = Labels(env, version)
+            },
+            StringData = new Dictionary<string, string>
+            {
+                ["value"] = data
+            }
+        };
+
+    public static V1ConfigMap V1ConfigMap(string resourceName, string env, string version, string data)
+        => new()
+        {
+            Metadata = new V1ObjectMeta
+            {
+                Name = resourceName,
+                Labels = Labels(env, version)
+            },
+            Data = new Dictionary<string, string>
+            {
+                ["value"] = data
+            }
+        };
+
     public static V1LabelSelector V1LabelSelector(IDictionary<string, string> labels)
         => new()
         {
