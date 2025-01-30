@@ -2,9 +2,11 @@
 using a2k.Shared.Models.Aspire;
 using a2k.Shared.Models.Kubernetes;
 using k8s;
+using k8s.Autorest;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;
+using System.Net;
 
 namespace a2k.Cli.CommandLine;
 
@@ -110,39 +112,54 @@ public static class ResourceExtensions
         }
     }
 
-    public static async Task HandleExternalBindings(this Solution solution, Kubernetes k8s, LiveDisplayContext ctx, TreeNode phase)
+    public static async Task<Result> DeployIngressController(this Solution solution, Kubernetes k8s)
     {
         var externalBindings = solution.GetExternalBindings();
         if (!externalBindings.Any())
         {
-            phase.AddNode("[dim]No external bindings found, skipping ingress setup[/]");
-            return;
+            return new(Outcome.Skipped, [new Markup("[dim]No external bindings found, skipping ingress setup[/]")]);
         }
 
         // Deploy Traefik if not exists
         try
         {
             await k8s.ReadNamespacedDeploymentAsync("traefik-deployment", "kube-system");
-            phase.AddNode("[blue]Traefik is already installed[/]");
+            return new(Outcome.Exists, [new Markup("[blue]Traefik is already installed[/]")]);
         }
-        catch (k8s.Autorest.HttpOperationException)
+        catch (HttpOperationException)
         {
-            phase.AddNode("[yellow]Installing Traefik...[/]");
             await Traefik.Deploy(k8s);
-            phase.AddNode("[green]Traefik installed successfully[/]");
+            return new(Outcome.Created, [new Markup("[green]Traefik installed successfully[/]")]);
+        }
+    }
+
+    public static async Task<Result> DeployIngress(this Solution solution, Kubernetes k8s)
+    {
+        var externalBindings = solution.GetExternalBindings();
+        if (!externalBindings.Any())
+        {
+            return new(Outcome.Skipped, [new Markup("[dim]No external bindings found, skipping ingress setup[/]")]);
         }
 
         // Create single ingress for all services
+        var ingress = Ingress.Create(solution.Name, externalBindings);
         try
         {
-            var ingress = Ingress.Create(solution.Name, externalBindings);
+            await k8s.ReadNamespacedIngressAsync(ingress.Metadata.Name, solution.Name);
+
+            await k8s.DeleteNamespacedIngressAsync(ingress.Metadata.Name, solution.Name);
             await k8s.CreateNamespacedIngressAsync(ingress, solution.Name);
-            phase.AddNode("[green]Created centralized ingress rules[/]");
-            phase.AddNode($"[green]Services available at http://localhost:32080/service-name[/]");
+
+            return new(Outcome.Replaced, ingress.Metadata.Name);
+        }
+        catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
+        {
+            await k8s.CreateNamespacedIngressAsync(ingress, solution.Name);
+            return new(Outcome.Created, ingress.Metadata.Name);
         }
         catch (Exception ex)
         {
-            phase.AddNode($"[red]Failed to create ingress: {ex.Message}[/]");
+            return new(Outcome.Failed, ingress.Metadata.Name, ex);
         }
     }
 }

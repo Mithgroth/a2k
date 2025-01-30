@@ -57,7 +57,11 @@ public class Program
                 var phase4 = root.AddNode(Defaults.PHASE_IV);
                 ctx.Refresh();
 
-                await solution.HandleExternalBindings(k8s, ctx, phase4);
+                result = await solution.DeployIngressController(k8s);
+                result.WriteToConsole(ctx, phase4);
+
+                result = await solution.DeployIngress(k8s);
+                result.WriteToConsole(ctx, phase4);
 
                 var phase5 = root.AddNode(Defaults.PHASE_V);
                 ctx.Refresh();

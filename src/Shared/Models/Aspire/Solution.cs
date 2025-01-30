@@ -1,5 +1,7 @@
 ﻿using k8s;
+using k8s.Autorest;
 using Spectre.Console;
+using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -91,7 +93,7 @@ public sealed record Solution
         var manifest = JsonSerializer.Deserialize<Manifest>(json, Defaults.JsonSerializerOptions);
         if (manifest is null)
         {
-            return new(Outcome.Missing, 
+            return new(Outcome.Missing,
             [
                 new Markup($"[red]Could not read manifest.json file at {ManifestPath}[/]")
             ]);
@@ -118,7 +120,10 @@ public sealed record Solution
         foreach (var (resourceName, manifestResource) in Manifest!.Resources)
         {
             var resource = ToResource(resourceName, manifestResource);
-            Resources.Add(resource);
+            if (resource is not null)
+            {
+                Resources.Add(resource);
+            }
         }
 
         ProcessBindings();
@@ -128,7 +133,7 @@ public sealed record Solution
             new Markup($"[bold blue]manifest.json loaded![/]")
         ]);
 
-        Resource ToResource(string resourceName, ManifestResource manifestResource)
+        Resource? ToResource(string resourceName, ManifestResource manifestResource)
             => manifestResource.ResourceType switch
             {
                 var rt when rt.Contains("project", StringComparison.OrdinalIgnoreCase)
@@ -151,16 +156,8 @@ public sealed record Solution
                                      },
                                      manifestResource.Bindings,
                                      manifestResource.Env),
-                var rt when rt.Contains("parameter", StringComparison.OrdinalIgnoreCase)
-                    => new Parameter(this,
-                                     resourceName,
-                                     manifestResource.Value,
-                                     manifestResource.Inputs),
-                var rt when rt.Contains("value", StringComparison.OrdinalIgnoreCase)
-                    => new Value(this,
-                                 resourceName,
-                                 manifestResource.Value,
-                                 manifestResource.Inputs),
+                var rt when rt.Contains("parameter", StringComparison.OrdinalIgnoreCase) => default,
+                var rt when rt.Contains("value", StringComparison.OrdinalIgnoreCase) => default,
                 _ => throw new ArgumentException($"Unknown resource type: {manifestResource.ResourceType} for resource {resourceName}")
             };
         Dockerfile CreateDockerfile(ManifestResource r, string appHostPath, string resourceName)
@@ -183,7 +180,7 @@ public sealed record Solution
             await k8s.ReadNamespaceAsync(Name);
             return new(Outcome.Exists, Name);
         }
-        catch (k8s.Autorest.HttpOperationException ex) when (ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
         {
             if (!shouldCreateIfNotExists)
             {
@@ -202,7 +199,7 @@ public sealed record Solution
             .Cast<Project>()
             .SelectMany(p => p.Bindings?.Values
                 .Where(b => (b.External ?? false) && b.Scheme == "https")  // Only HTTPS bindings
-                .Select(_ => (Resource: p as Resource, Port: p.GetProjectPort() ?? 80)) 
+                .Select(_ => (Resource: p as Resource, Port: p.GetProjectPort() ?? 80))
                 ?? [])
             .ToList();
     }
@@ -213,18 +210,15 @@ public sealed record Solution
         foreach (var resource in Resources.Where(r => r.ResourceType is AspireResourceTypes.Parameter or AspireResourceTypes.Value))
         {
             var manifestResource = Manifest!.Resources[resource.ResourceName];
-            
-            if (resource.ResourceType == AspireResourceTypes.Parameter && 
-                manifestResource.Value?.Contains("inputs.value") == true)
+            if (resource.ResourceType == AspireResourceTypes.Parameter && manifestResource.Value?.Contains("inputs.value") == true)
             {
                 var input = manifestResource.Inputs["value"];
                 if (input.Secret && input.Default?.Generate != null)
                 {
-                    _generatedSecrets[resource.ResourceName] = 
-                        Utility.GenerateSecureString(input.Default.Generate.MinLength);
+                    _generatedSecrets[resource.ResourceName] = Utility.GenerateSecureString(input.Default.Generate.MinLength);
                 }
             }
-            
+
             if (!string.IsNullOrEmpty(manifestResource.Value))
             {
                 _resolvedValues[resource.ResourceName] = ResolveValue(manifestResource.Value);
@@ -236,8 +230,7 @@ public sealed record Solution
             var manifestResource = Manifest!.Resources[resource.ResourceName];
             if (!string.IsNullOrEmpty(manifestResource.ConnectionString))
             {
-                _resolvedValues[$"{resource.ResourceName}.connectionString"] = 
-                    ResolveConnectionString(manifestResource.ConnectionString);
+                _resolvedValues[$"{resource.ResourceName}.connectionString"] = ResolveConnectionString(manifestResource.ConnectionString);
             }
         }
 
@@ -257,7 +250,7 @@ public sealed record Solution
     {
         // First resolve any bindings in the template
         var resolvedTemplate = ResolveValue(template);
-        
+
         // If this is a fully resolved string, return it
         if (!resolvedTemplate.Contains('{'))
         {
@@ -298,7 +291,7 @@ public sealed record Solution
     private string ResolveBinding(string resourceName, string bindingName, string property)
     {
         var resource = Resources.First(r => r.ResourceName == resourceName);
-        var binding = resource.Bindings?[bindingName] 
+        var binding = resource.Bindings?[bindingName]
             ?? throw new InvalidOperationException($"No binding {bindingName} found for resource {resourceName}");
 
         // For tcp bindings (like postgres), always use targetPort
@@ -331,37 +324,58 @@ public sealed record Solution
         {
             var manifestResource = Manifest!.Resources[resource.ResourceName];
             var isSecret = manifestResource.Inputs?.TryGetValue("value", out var input) == true && input.Secret;
-
-            try
+            if (isSecret)
             {
-                if (isSecret)
-                {
-                    var secret = Defaults.V1Secret(
-                        resource.ResourceName, 
-                        Env, 
-                        Tag, 
-                        _resolvedValues.GetValueOrDefault(resource.ResourceName)
-                            ?? _generatedSecrets.GetValueOrDefault(resource.ResourceName)
-                            ?? manifestResource.Value);
+                var data = _resolvedValues.GetValueOrDefault(resource.ResourceName)
+                                ?? _generatedSecrets.GetValueOrDefault(resource.ResourceName)
+                                ?? manifestResource.Value;
+                var secret = Defaults.V1Secret(resource.ResourceName, Env, Tag, data);
 
+                try
+                {
+                    await k8s.ReadNamespacedSecretAsync(secret.Metadata.Name, Name);
+
+                    await k8s.DeleteNamespacedSecretAsync(secret.Metadata.Name, Name);
                     await k8s.CreateNamespacedSecretAsync(secret, Name);
-                    results.Add(new(Outcome.Created, $"Secret/{resource.ResourceName}"));
-                }
-                else
-                {
-                    var configMap = Defaults.V1ConfigMap(
-                        resource.ResourceName, 
-                        Env, 
-                        Tag, 
-                        _resolvedValues.GetValueOrDefault(resource.ResourceName) ?? manifestResource.Value);
 
-                    await k8s.CreateNamespacedConfigMapAsync(configMap, Name);
-                    results.Add(new(Outcome.Created, $"ConfigMap/{resource.ResourceName}"));
+                    return new(Outcome.Replaced, $"Secret/{resource.ResourceName}");
+                }
+                catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    await k8s.CreateNamespacedSecretAsync(secret, Name);
+                    return new(Outcome.Created, $"Secret/{resource.ResourceName}");
+                }
+                catch (Exception ex)
+                {
+                    return new(Outcome.Failed, $"Secret/{resource.ResourceName}", ex);
                 }
             }
-            catch (Exception ex)
+            else
             {
-                results.Add(new(Outcome.Failed, resource.ResourceName, ex));
+                var data = _resolvedValues.GetValueOrDefault(resource.ResourceName) ?? manifestResource.Value;
+                var configMap = Defaults.V1ConfigMap(resource.ResourceName, Env, Tag, data);
+
+                //await k8s.CreateNamespacedConfigMapAsync(configMap, Name);
+                //results.Add(new(Outcome.Created, $"ConfigMap/{resource.ResourceName}"));
+
+                try
+                {
+                    await k8s.ReadNamespacedConfigMapAsync(configMap.Metadata.Name, Name);
+
+                    await k8s.DeleteNamespacedConfigMapAsync(configMap.Metadata.Name, Name);
+                    await k8s.CreateNamespacedConfigMapAsync(configMap, Name);
+
+                    return new(Outcome.Replaced, $"ConfigMap/{resource.ResourceName}");
+                }
+                catch (HttpOperationException ex) when (ex.Response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    await k8s.CreateNamespacedConfigMapAsync(configMap, Name);
+                    return new(Outcome.Created, $"ConfigMap/{resource.ResourceName}");
+                }
+                catch (Exception ex)
+                {
+                    return new(Outcome.Failed, $"ConfigMap/{resource.ResourceName}", ex);
+                }
             }
         }
 
