@@ -13,7 +13,6 @@ public record Container(Solution Solution,
 {
     public override async Task<Result> DeployResource(k8s.Kubernetes k8s)
     {
-        // Publish container
         if (Dockerfile?.ShouldBuildWithDocker == true)
         {
             var buildCommand = $"docker build -t {Dockerfile.FullImageName}";
@@ -33,12 +32,6 @@ public record Container(Solution Solution,
             Dockerfile = Dockerfile.UpdateSHA256(sha256);
         }
 
-        var result = await base.DeployResource(k8s);
-        if (Solution.UseVersioning == false)
-        {
-            Dockerfile.CleanupOldImages();
-        }
-
-        return result;
+        return await base.DeployResource(k8s);
     }
 }

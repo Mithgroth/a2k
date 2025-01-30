@@ -47,7 +47,6 @@ public class Program
                 result = await solution.DeployConfigurations(k8s);
                 result.WriteToConsole(ctx, phase2);
 
-                // TODO: Fix the bug "[bold lightseagreen]Deploying resources to Kubernetes[/]" being doubled somehow
                 await solution.Resources.Deploy(k8s, ctx, phase2);
 
                 var phase3 = root.AddNode(Defaults.PHASE_III);
@@ -62,6 +61,13 @@ public class Program
 
                 var phase5 = root.AddNode(Defaults.PHASE_V);
                 ctx.Refresh();
+
+                if (!useVersioning)
+                {
+                    // TODO: We need to make sure new pods with new images are up first
+                    Shell.Run($"docker image prune -f", writeToOutput: false);
+                    root.AddNode($"[bold gray]{Emoji.Known.LitterInBinSign} Pruned dangling Docker images![/]");
+                }
 
                 root.AddNode($"[bold green]{Emoji.Known.CheckMark} Deployment completed![/]");
             });

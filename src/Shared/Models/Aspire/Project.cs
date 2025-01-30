@@ -19,7 +19,6 @@ public record Project(Solution Solution,
 {
     public override async Task<Result> DeployResource(k8s.Kubernetes k8s)
     {
-        // Build .NET Project
         var publishCommand = $"dotnet publish {Directory.GetParent(CsProjPath)} -c Release --verbosity quiet --os linux /t:PublishContainer /p:ContainerRepository={Dockerfile.Name}";
         if (Solution.UseVersioning)
         {
@@ -33,11 +32,6 @@ public record Project(Solution Solution,
 
         var baseResult = await base.DeployResource(k8s);
         baseResult?.Messages.Prepend(new Markup($"[bold green]Published Docker image for {ResourceName} as {Dockerfile.FullImageName}[/]"));
-
-        if (Solution.UseVersioning == false)
-        {
-            Dockerfile.CleanupOldImages();
-        }
 
         return baseResult;
     }
@@ -111,5 +105,4 @@ public record Project(Solution Solution,
 
         return Utility.GenerateAvailablePort();
     }
-
 }
