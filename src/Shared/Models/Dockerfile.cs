@@ -103,4 +103,21 @@ public record Dockerfile(string Name,
 
         return this;
     }
+
+    public static void CleanupAll(string solutionName)
+    {
+        // 1. Remove all dangling images (both labeled and unlabeled)
+        Shell.Run("docker image prune -f", writeToOutput: false);
+        
+        // 2. Remove all images with our project label
+        Shell.Run($"docker rmi -f $(docker images --filter \"label=a2k.project={solutionName}\" --format \"{{{{.Repository}}}}:{{{{.Tag}}}}\")", 
+            writeToOutput: false);
+        
+        // 3. Remove all :old tagged images (including third-party)
+        Shell.Run($"docker rmi -f $(docker images --filter \"reference=*:old\" --format \"{{{{.Repository}}}}:{{{{.Tag}}}}\")", 
+            writeToOutput: false);
+        
+        // 4. Final prune to catch any leftovers
+        Shell.Run("docker image prune -f", writeToOutput: false);
+    }
 }

@@ -19,7 +19,7 @@ public record Project(Solution Solution,
 {
     public override async Task<Result> DeployResource(k8s.Kubernetes k8s)
     {
-        var publishCommand = $"dotnet publish {Directory.GetParent(CsProjPath)} -c Release --verbosity quiet --os linux /t:PublishContainer /p:ContainerRepository={Dockerfile.Name}";
+        var publishCommand = $"dotnet publish {Directory.GetParent(CsProjPath)} -c Release --verbosity quiet --os linux /t:PublishContainer /p:ContainerRepository={Dockerfile.Name} /p:ContainerImageTags={Dockerfile.Tag} /p:ContainerLabel=a2k.project={Solution.Name}";
         if (Solution.UseVersioning)
         {
             publishCommand += $" /p:ContainerImageTags={Dockerfile.Tag}";

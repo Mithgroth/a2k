@@ -1,5 +1,6 @@
 ﻿using a2k.Cli.CommandLine;
 using a2k.Shared;
+using a2k.Shared.Models;
 using a2k.Shared.Models.Aspire;
 using k8s;
 using Spectre.Console;
@@ -68,9 +69,16 @@ public class Program
 
                 if (!useVersioning)
                 {
-                    // TODO: We need to make sure new pods with new images are up first
-                    Shell.Run($"docker image prune -f", writeToOutput: false);
-                    root.AddNode($"[bold gray]{Emoji.Known.LitterInBinSign} Pruned dangling Docker images![/]");
+                    phase5.AddNode("[dim]Cleaning up old Docker images...[/]");
+                    ctx.Refresh();
+
+                    // Wait for image building to be completed
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+
+                    Dockerfile.CleanupAll(solution.Name);
+
+                    phase5.AddNode($"[bold gray]{Emoji.Known.LitterInBinSign} Final image cleanup completed![/]");
+                    ctx.Refresh();
                 }
 
                 root.AddNode($"[bold green]{Emoji.Known.CheckMark} Deployment completed![/]");

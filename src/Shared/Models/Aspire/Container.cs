@@ -15,7 +15,7 @@ public record Container(Solution Solution,
     {
         if (Dockerfile?.ShouldBuildWithDocker == true)
         {
-            var buildCommand = $"docker build -t {Dockerfile.FullImageName}";
+            var buildCommand = $"docker build -t {Dockerfile.FullImageName} --label a2k.project={Solution.Name}";
             if (!string.IsNullOrEmpty(Dockerfile?.Path))
             {
                 buildCommand += $" -f {Dockerfile.Path}";
