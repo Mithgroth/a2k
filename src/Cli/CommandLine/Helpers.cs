@@ -23,41 +23,38 @@ internal static class Helpers
 
     private static IList<Option> ConfigureOptions()
     {
-        var appHostOption = new Option<string>(
-            "--appHostPath",
-            description: "The path to the AppHost project folder",
-            getDefaultValue: Directory.GetCurrentDirectory);
-
-        var nameOption = new Option<string>(
-            "--name",
-            description: "Name of your application, deployed to Kubernetes as Namespace. Defaults to your Aspire project's sln file name.",
-            getDefaultValue: () => string.Empty);
-
-        var envOption = new Option<string>(
-            "--env",
-            description: "Environment you are deploying as (dev, stg, prod), deployed to Kubernetes as Application. Defaults to your \"default\" if not specified.",
-            getDefaultValue: () => string.Empty);
-
-        var versioningOption = new Option<bool>(
-            "--useVersioning",
-            description: "Use versioning while deploying to Kubernetes and Docker, if this is false a2k only uses latest tag",
-            getDefaultValue: () => false);
-
-        return [appHostOption, nameOption, envOption, versioningOption];
+        return
+        [
+            new Option<string>(
+                ["--appHostPath", "-p"],
+                description: "Path to Aspire AppHost project",
+                getDefaultValue: Directory.GetCurrentDirectory),
+            
+            new Option<string>(
+                ["--name", "-n"],
+                description: "Application/Namespace name"),
+            
+            new Option<string>(
+                ["--env", "-e"],
+                description: "Deployment environment (dev, stg, prod)",
+                getDefaultValue: () => "default"),
+            
+            new Option<bool>(
+                ["--useVersioning", "-v"],
+                description: "Enable Kubernetes revision tracking")
+        ];
     }
 
     internal static RootCommand WireUp<T1, T2, T3, T4>(Func<T1, T2, T3, T4, Task> handler)
     {
         var options = ConfigureOptions();
-
-        // Define the root command
+        
         var rootCommand = new RootCommand
         {
-            // TODO: Find a better way to wire this up
-            options[0],
-            options[1],
-            options[2],
-            options[3],
+            options[0], // appHostPath
+            options[1], // name
+            options[2], // env
+            options[3]  // useVersioning
         };
 
         rootCommand.Description = "a2k CLI: Deploy Aspire projects to Kubernetes";
@@ -65,6 +62,20 @@ internal static class Helpers
 
         return rootCommand;
     }
+
+    public static Option<string> GetAppHostPathOption() 
+        => new(["--appHostPath", "-a"],
+               description: "Path to Aspire AppHost project",
+               getDefaultValue: Directory.GetCurrentDirectory);
+
+    public static Option<string> GetNameOption() => new(["--name", "-n"], "Application/Namespace name");
+
+    public static Option<string> GetEnvOption() 
+        => new(["--env", "-e"],
+               description: "Deployment environment (dev, stg, prod)",
+               getDefaultValue: () => "default");
+
+    public static Option<bool> GetVersioningOption() => new(["--useVersioning", "-v"], "Enable Kubernetes revision tracking");
 }
 
 public static class ResultExtensions
