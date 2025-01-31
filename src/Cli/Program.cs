@@ -15,9 +15,13 @@ public class Program
     public static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
-        Helpers.Greet();
+        
+        var rootCommand = new RootCommand
+        {
+            Description = "Deploy .NET Aspire applications to Kubernetes"
+        };
 
-        var rootCommand = new RootCommand("Deploy .NET Aspire applications to Kubernetes");        
+        // Add subcommands
         var deployCommand = new Command("deploy", "Deploy application to Kubernetes")
         {
             Helpers.GetAppHostPathOption(),
@@ -42,10 +46,29 @@ public class Program
             Helpers.GetVersioningOption()
         };
         planCommand.Handler = CommandHandler.Create<string, string, string, bool>(ShowPlan);
-        
-        rootCommand.Add(deployCommand);
-        rootCommand.Add(statusCommand);
-        rootCommand.Add(planCommand);
+
+        rootCommand.AddCommand(deployCommand);
+        rootCommand.AddCommand(statusCommand);
+        rootCommand.AddCommand(planCommand);
+
+        // Add default handler for root command
+        rootCommand.SetHandler(() => 
+        {
+            Helpers.Greet();
+            AnsiConsole.Write(new Rule("[green]Usage[/]"));
+            
+            var table = new Table()
+                .Border(TableBorder.None)
+                .AddColumn("[yellow]Command[/]")
+                .AddColumn("[yellow]Description[/]")
+                .AddRow("[green]deploy[/]", "Deploy your application to Kubernetes")
+                .AddRow("[green]status[/]", "Check current deployment status")
+                .AddRow("[green]plan[/]", "Preview deployment changes")
+                .AddRow("[blue]--help[/]", "Show detailed help");
+                
+            AnsiConsole.Write(table);
+            AnsiConsole.Write(new Rule());
+        });
 
         return await rootCommand.InvokeAsync(args);
     }

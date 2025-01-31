@@ -5,7 +5,12 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-	  <ToolCommandName>a2k</ToolCommandName>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>a2k</ToolCommandName>
+    <PackageOutputPath>../../nupkg</PackageOutputPath>
+    <PackageId>a2k</PackageId>
+    <Version>0.0.1</Version>
+    <PackageVersion>0.0.1</PackageVersion>
   </PropertyGroup>
 
   <ItemGroup>

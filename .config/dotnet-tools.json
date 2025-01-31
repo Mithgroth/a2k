@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "a2k": {
+      "version": "0.0.1",
+      "commands": [
+        "a2k"
+      ],
+      "rollForward": false
+    }
+  }
+}
