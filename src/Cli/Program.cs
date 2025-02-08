@@ -2,6 +2,8 @@
 using Spectre.Console.Cli;
 using Status = a2k.Cli.Commands.Status;
 
+Console.OutputEncoding = System.Text.Encoding.UTF8;
+
 var app = new CommandApp();
 app.Configure(config =>
 {
