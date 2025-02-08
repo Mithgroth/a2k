@@ -49,7 +49,7 @@ public abstract record Resource(Solution Solution,
                         {
                             Name = ResourceName,
                             Image = Dockerfile?.FullImageName,
-                            ImagePullPolicy = Dockerfile?.ShouldBuildWithDocker == true ? "Never" : "IfNotPresent",
+                            ImagePullPolicy = Solution.IsLocal ? "Never" : "IfNotPresent",
                             Ports =
                             [
                                 new(Bindings?.Values.FirstOrDefault(b => b.TargetPort.HasValue)?.TargetPort ?? 80)
