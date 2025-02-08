@@ -27,25 +27,42 @@ public class Program
             Helpers.GetAppHostPathOption(),
             Helpers.GetNameOption(),
             Helpers.GetEnvOption(),
-            Helpers.GetVersioningOption()
+            Helpers.GetVersioningOption(),
+            Helpers.GetContextOption(),
+            Helpers.GetRegistryUrlOption(),
+            Helpers.GetRegistryUserOption(),
+            Helpers.GetRegistryPasswordOption()
         };
-        deployCommand.Handler = CommandHandler.Create<string, string, string, bool>(RunDeployment);
+        deployCommand.Handler = CommandHandler.Create<
+            string, string, string, bool, string?, 
+            string?, string?, string?>(
+                RunDeployment
+            );
         
         var statusCommand = new Command("status", "Show deployment status")
         {
-            new Option<string>("--name", "Namespace to check"),
-            new Option<string>("--env", "Environment filter"),
+            Helpers.GetNameOption(),
+            Helpers.GetEnvOption(),
+            Helpers.GetContextOption()
         };
-        statusCommand.Handler = CommandHandler.Create<string, string>(CheckStatus);
+        statusCommand.Handler = CommandHandler.Create<string, string, string?>(CheckStatus);
         
         var planCommand = new Command("plan", "Show execution plan without deploying")
         {
             Helpers.GetAppHostPathOption(),
             Helpers.GetNameOption(),
             Helpers.GetEnvOption(),
-            Helpers.GetVersioningOption()
+            Helpers.GetVersioningOption(),
+            Helpers.GetContextOption(),
+            Helpers.GetRegistryUrlOption(),
+            Helpers.GetRegistryUserOption(),
+            Helpers.GetRegistryPasswordOption()
         };
-        planCommand.Handler = CommandHandler.Create<string, string, string, bool>(ShowPlan);
+        planCommand.Handler = CommandHandler.Create<
+            string, string, string, bool, string?,
+            string?, string?, string?>(
+                ShowPlan
+            );
 
         rootCommand.AddCommand(deployCommand);
         rootCommand.AddCommand(statusCommand);
@@ -77,15 +94,25 @@ public class Program
         string appHostPath, 
         string name, 
         string env, 
-        bool useVersioning = false)
+        bool useVersioning,
+        string? context = null,
+        string? registryUrl = null,
+        string? registryUser = null,
+        string? registryPassword = null)
     {
-        var solution = new Solution(appHostPath, name, env, useVersioning);
-        var k8s = new Kubernetes(KubernetesClientConfiguration.BuildConfigFromConfigFile());
+        var config = string.IsNullOrEmpty(context)
+            ? KubernetesClientConfiguration.BuildConfigFromConfigFile()
+            : KubernetesClientConfiguration.BuildConfigFromConfigFile(currentContext: context);
+        
+        var k8s = new Kubernetes(config);
+        var solution = new Solution(appHostPath, name, env, useVersioning, context, registryUrl, registryUser, registryPassword);
 
         var root = new Tree(Defaults.ROOT);
         await AnsiConsole.Live(root)
             .StartAsync(async ctx =>
             {
+                root.AddNode($"[bold]Cluster Context:[/] {config.CurrentContext}");
+                root.AddNode($"[bold]Target Cluster:[/] {solution.Context}");
                 var phase1 = root.AddNode(Defaults.PHASE_I);
                 phase1.AddNode($"[dim]Checking .NET Aspire manifest.json file[/]");
                 ctx.Refresh();
@@ -139,21 +166,30 @@ public class Program
                     ctx.Refresh();
                 }
 
+                if (!solution.IsLocal)
+                {
+                    await Helpers.CreateImagePullSecret(k8s, solution);
+                }
+
                 root.AddNode($"[bold green]{Emoji.Known.CheckMark} Deployment completed![/]");
             });
     }
 
-    private static async Task CheckStatus(string name, string env)
+    private static async Task CheckStatus(string name, string env, string? context = null)
     {
-        var k8s = new Kubernetes(KubernetesClientConfiguration.BuildConfigFromConfigFile());
+        var config = string.IsNullOrEmpty(context)
+            ? KubernetesClientConfiguration.BuildConfigFromConfigFile()
+            : KubernetesClientConfiguration.BuildConfigFromConfigFile(currentContext: context);
+        
+        var k8s = new Kubernetes(config);
         
         var table = new Table()
             .Border(TableBorder.Rounded)
+            .AddColumn("Context")
             .AddColumn("Namespace")
             .AddColumn("Environment")
             .AddColumn("Pods")
-            .AddColumn("Services")
-            .AddColumn("Ingress");
+            .AddColumn("Services");
 
         var namespaces = string.IsNullOrEmpty(name) 
             ? await k8s.ListNamespaceAsync() 
@@ -176,11 +212,11 @@ public class Program
             var ingresses = await k8s.ListNamespacedIngressAsync(nsName);
 
             table.AddRow(
+                config.CurrentContext,
                 nsName,
                 (ns.Metadata.Labels?.TryGetValue("app.kubernetes.io/environment", out envLabel) ?? false) ? envLabel : "default",
                 $"[green]{pods.Items.Count} running[/]",
-                $"{services.Items.Count} active",
-                ingresses.Items.Count > 0 ? Emoji.Known.CheckMark : Emoji.Known.CrossMark
+                $"{services.Items.Count} active"
             );
         }
 
@@ -188,22 +224,32 @@ public class Program
     }
 
     private static async Task ShowPlan(
-        string appHostPath, 
-        string name, 
-        string env, 
-        bool useVersioning = false)
+        string appHostPath,
+        string name,
+        string env,
+        bool useVersioning,
+        string? context = null,
+        string? registryUrl = null,
+        string? registryUser = null,
+        string? registryPassword = null)
     {
-        // Initialize solution with manifest parsing
-        var solution = new Solution(appHostPath, name, env, useVersioning);
+        var solution = new Solution(
+            appHostPath, 
+            name, 
+            env, 
+            useVersioning, 
+            context,
+            registryUrl,
+            registryUser,
+            registryPassword
+        );
         
-        // Add this line to load resources from manifest
-        await solution.ReadManifest();
-
         var panel = new Panel(new Rows(
             new Markup($"[bold]Application:[/] {solution.Name}"),
             new Markup($"[bold]Environment:[/] {solution.Env}"),
-            new Markup($"[bold]Versioning:[/] {(solution.UseVersioning ? "Enabled" : "Disabled")}"),
-            new Markup($"[bold]Tag:[/] {solution.Tag}")
+            new Markup($"[bold]Cluster:[/] {solution.Context}"),
+            new Markup($"[bold]Registry:[/] {(solution.IsLocal ? "local" : solution.RegistryUrl)}"),
+            new Markup($"[bold]Versioning:[/] {(solution.UseVersioning ? "Enabled" : "Disabled")}")
         ));
         
         var deploymentPlan = new Table()
@@ -220,11 +266,15 @@ public class Program
             deploymentPlan.AddRow("[yellow]CREATE[/]", "Docker Images", "", "");
             foreach (var resource in dockerResources)
             {
+                var imageName = solution.IsLocal 
+                    ? resource.Dockerfile.Name 
+                    : $"{solution.RegistryUrl}/{resource.Dockerfile.Name}";
+                
                 deploymentPlan.AddRow(
                     "  [green]+[/]", 
                     resource.ResourceName, 
                     "Image",
-                    $"{resource.Dockerfile.FullImageName} (new build)"
+                    $"{imageName}:{resource.Dockerfile.Tag} ({(solution.IsLocal ? "local build" : "remote registry")})"
                 );
             }
         }

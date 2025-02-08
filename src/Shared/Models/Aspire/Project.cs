@@ -19,17 +19,41 @@ public record Project(Solution Solution,
 {
     public override async Task<Result> DeployResource(k8s.Kubernetes k8s)
     {
-        var publishCommand = $"dotnet publish {Directory.GetParent(CsProjPath)} -c Release --verbosity quiet --os linux /t:PublishContainer /p:ContainerRepository={Dockerfile.Name} /p:ContainerImageTags={Dockerfile.Tag} /p:ContainerLabel=a2k.project={Solution.Name}";
-        if (Solution.UseVersioning)
-        {
-            publishCommand += $" /p:ContainerImageTags={Dockerfile.Tag}";
-        }
+        var registryHost = Solution.RegistryUrl?
+            .Replace("https://", "")
+            .Replace("http://", "")
+            .TrimEnd('/');
+
+        // Remove solution name prefix from project name
+        var projectName = Dockerfile.Name.Replace($"{Solution.Name}-", "");
+        
+        var imageName = Solution.IsLocal 
+            ? projectName 
+            : $"{registryHost}/{Solution.RegistryNamespace}/{projectName}";
+
+        // Add validation output
+        AnsiConsole.MarkupLine($"[yellow]Building image: {imageName}:{Dockerfile.Tag}[/]");
+        AnsiConsole.MarkupLine($"[yellow]Full image: {imageName}:{Dockerfile.Tag}[/]");
+
+        var publishCommand = $"dotnet publish {Directory.GetParent(CsProjPath)} -c Release " +
+            $"--os linux /t:PublishContainer " +
+            $"/p:ContainerRepository={imageName} " +
+            $"/p:ContainerImageTags={Dockerfile.Tag}";
 
         Shell.Run(publishCommand);
+
+        if (!Solution.IsLocal)
+        {
+            Shell.Run($"docker login {Solution.RegistryUrl} -u {Solution.RegistryUser} -p {Solution.RegistryPassword}", writeToOutput: true);
+            Shell.Run($"docker push {imageName}:{Dockerfile.Tag}", writeToOutput: true);
+        }
 
         var sha256 = Shell.Run($"docker inspect --format={{{{.Id}}}} {Dockerfile.FullImageName}", writeToOutput: false).Replace("sha256:", "").Trim();
         Dockerfile = Dockerfile.UpdateSHA256(sha256);
 
+        // Update deployment to use final image name
+        Dockerfile = Dockerfile with { Name = imageName, Tag = Dockerfile.Tag };
+        
         var baseResult = await base.DeployResource(k8s);
         baseResult?.Messages.Prepend(new Markup($"[bold green]Published Docker image for {ResourceName} as {Dockerfile.FullImageName}[/]"));
 

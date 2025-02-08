@@ -3,10 +3,12 @@ using a2k.Shared.Models.Aspire;
 using a2k.Shared.Models.Kubernetes;
 using k8s;
 using k8s.Autorest;
+using k8s.Models;
 using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;
 using System.Net;
+using System.Text;
 
 namespace a2k.Cli.CommandLine;
 
@@ -41,7 +43,23 @@ internal static class Helpers
             
             new Option<bool>(
                 ["--useVersioning", "-v"],
-                description: "Enable Kubernetes revision tracking")
+                description: "Enable Kubernetes revision tracking"),
+            
+            new Option<string>(
+                ["--context", "-c"],
+                description: "Kubernetes context name (default: current context)"),
+            
+            new Option<string>(
+                ["--registry-url"],
+                description: "Docker registry URL (e.g. docker.io, ghcr.io)"),
+            
+            new Option<string>(
+                ["--registry-user"],
+                description: "Docker registry username"),
+            
+            new Option<string>(
+                ["--registry-password"],
+                description: "Docker registry password")
         ];
     }
 
@@ -54,7 +72,11 @@ internal static class Helpers
             options[0], // appHostPath
             options[1], // name
             options[2], // env
-            options[3]  // useVersioning
+            options[3], // useVersioning
+            options[4], // context
+            options[5], // registry-url
+            options[6], // registry-user
+            options[7], // registry-password
         };
 
         rootCommand.Description = "a2k CLI: Deploy Aspire projects to Kubernetes";
@@ -76,6 +98,59 @@ internal static class Helpers
                getDefaultValue: () => "default");
 
     public static Option<bool> GetVersioningOption() => new(["--useVersioning", "-v"], "Enable Kubernetes revision tracking");
+
+    public static Option<string> GetContextOption() 
+        => new(["--context", "-c"],
+            description: "Kubernetes context name (default: current context)")
+        {
+            IsRequired = false
+        };
+
+    public static Option<string> GetRegistryUrlOption() 
+        => new(["--registry-url"], "Docker registry URL (e.g. docker.io, ghcr.io)");
+
+    public static Option<string> GetRegistryUserOption() 
+        => new(["--registry-user"], "Docker registry username");
+
+    public static Option<string> GetRegistryPasswordOption() 
+        => new(["--registry-password"], "Docker registry password");
+
+    public static async Task<Result> CreateImagePullSecret(Kubernetes k8s, Solution solution)
+    {
+        var secret = new V1Secret
+        {
+            Metadata = new V1ObjectMeta
+            {
+                Name = "a2k-registry-creds",
+                NamespaceProperty = solution.Name
+            },
+            Type = "kubernetes.io/dockerconfigjson",
+            Data = new Dictionary<string, byte[]>
+            {
+                [".dockerconfigjson"] = Encoding.UTF8.GetBytes($$"""
+                    {
+                        "auths": {
+                            "{{solution.RegistryUrl}}": {
+                                "username": "{{solution.RegistryUser}}",
+                                "password": "{{solution.RegistryPassword}}",
+                                "auth": "{{Convert.ToBase64String(Encoding.UTF8.GetBytes($"{solution.RegistryUser}:{solution.RegistryPassword}"))}}"
+                            }
+                        }
+                    }
+                    """)
+            }
+        };
+
+        try
+        {
+            await k8s.CreateNamespacedSecretAsync(secret, solution.Name);
+            return new(Outcome.Created, "Secret/a2k-registry-creds");
+        }
+        catch
+        {
+            return new(Outcome.Exists, "Secret/a2k-registry-creds");
+        }
+    }
 }
 
 public static class ResultExtensions

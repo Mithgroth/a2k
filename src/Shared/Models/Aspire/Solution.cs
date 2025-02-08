@@ -53,14 +53,43 @@ public sealed record Solution
     private readonly Dictionary<string, string> _resolvedValues = [];
     private readonly Dictionary<string, string> _generatedSecrets = [];
 
-    public Solution(string appHostPath, string? name, string env, bool useVersioning = false)
+    public string Context { get; }
+
+    public string? RegistryUrl { get; }
+    public string? RegistryUser { get; }
+    public string? RegistryPassword { get; }
+    public bool IsLocal => string.IsNullOrEmpty(RegistryUrl);
+
+    public string RegistryNamespace => Name.ToLower().Replace(" ", "-");
+
+    public Solution(string appHostPath, string? name, string env, bool useVersioning, string? context, string? registryUrl, string? registryUser, string? registryPassword)
     {
+        RegistryUrl = registryUrl;
+        RegistryUser = registryUser;
+        RegistryPassword = registryPassword;
+        // Get actual context name
+        var config = string.IsNullOrEmpty(context) 
+            ? KubernetesClientConfiguration.BuildConfigFromConfigFile()
+            : KubernetesClientConfiguration.BuildConfigFromConfigFile(currentContext: context);
+            
+        Context = config.CurrentContext;
+        
         AppHostPath = appHostPath ?? throw new ArgumentNullException(nameof(appHostPath));
         Env = string.IsNullOrEmpty(env) ? "default" : env;
         ManifestPath = Path.Combine(appHostPath, "manifest.json");
         Name = string.IsNullOrEmpty(name) ? Utility.FindAndFormatSolutionName(appHostPath) : name;
         Tag = useVersioning ? Utility.GenerateVersion() : "latest";
         UseVersioning = useVersioning;
+
+        if (!IsLocal && (string.IsNullOrEmpty(RegistryUser) || string.IsNullOrEmpty(RegistryPassword)))
+        {
+            throw new InvalidOperationException("Registry credentials required for remote deployments");
+        }
+
+        if (!IsLocal && string.IsNullOrEmpty(Name))
+        {
+            throw new InvalidOperationException("Solution name is required for remote deployments");
+        }
     }
 
     public Result CreateManifestIfNotExists()
@@ -141,7 +170,7 @@ public sealed record Solution
                                    resourceName,
                                    CsProjPath: Path.GetFullPath(Path.Combine(AppHostPath, manifestResource.Path)),
                                    UseVersioning,
-                                   new Dockerfile($"{Name.ToLowerInvariant()}-{resourceName.ToLowerInvariant()}", Tag),
+                                   new Dockerfile($"{resourceName.ToLowerInvariant()}", Tag),
                                    manifestResource.Bindings,
                                    manifestResource.Env),
                 var rt when rt.Contains("container", StringComparison.OrdinalIgnoreCase)

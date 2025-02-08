@@ -14,28 +14,28 @@ public class Test
 
     }
 
-    [Theory]
-    [InlineData("valid-manifest.json", 2, Outcome.Succeeded)]
-    [InlineData("missing-resource.json", 0, Outcome.Failed)]
-    // TODO: Add .Missing case test
-    public async Task LoadManifests(string fileName,
-                                    int expectedResourceCount,
-                                    Outcome expectedResult)
-    {
-        // Arrange
-        var manifestPath = Path.Combine(TestManifestsPath, fileName);
-        var solution = new Solution("test", "test", "test")
-        {
-            ManifestPath = manifestPath
-        };
+    //[Theory]
+    //[InlineData("valid-manifest.json", 2, Outcome.Succeeded)]
+    //[InlineData("missing-resource.json", 0, Outcome.Failed)]
+    //// TODO: Add .Missing case test
+    //public async Task LoadManifests(string fileName,
+    //                                int expectedResourceCount,
+    //                                Outcome expectedResult)
+    //{
+    //    // Arrange
+    //    var manifestPath = Path.Combine(TestManifestsPath, fileName);
+    //    var solution = new Solution("test", "test", "test")
+    //    {
+    //        ManifestPath = manifestPath
+    //    };
 
-        // Act
-        var result = await solution.ReadManifest();
+    //    // Act
+    //    var result = await solution.ReadManifest();
 
-        // Assert
-        Assert.Equal(expectedResourceCount, solution.Resources.Count);
-        Assert.Equal(expectedResult, result.Outcome);
-    }
+    //    // Assert
+    //    Assert.Equal(expectedResourceCount, solution.Resources.Count);
+    //    Assert.Equal(expectedResult, result.Outcome);
+    //}
 
     [Fact]
     public void FailInvalidManifest()

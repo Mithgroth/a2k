@@ -1,5 +1,4 @@
-﻿using Spectre.Console;
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace a2k.Shared.Models;
 
