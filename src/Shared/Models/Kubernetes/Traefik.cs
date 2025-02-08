@@ -3,9 +3,9 @@ using k8s.Models;
 
 namespace a2k.Shared.Models.Kubernetes;
 
-public static class Traefik
+public class Traefik(k8s.Kubernetes k8sClient)
 {
-    public static V1ServiceAccount CreateServiceAccount()
+    private V1ServiceAccount ServiceAccount
         => new()
         {
             ApiVersion = "v1",
@@ -17,7 +17,7 @@ public static class Traefik
             }
         };
 
-    public static V1ClusterRole CreateClusterRole()
+    private V1ClusterRole ClusterRole
         => new()
         {
             ApiVersion = "rbac.authorization.k8s.io/v1",
@@ -26,47 +26,47 @@ public static class Traefik
             {
                 Name = "traefik-role"
             },
-            Rules = new List<V1PolicyRule>
-            {
+            Rules =
+            [
                 // Allow access to services, endpoints, secrets
                 new()
                 {
-                    ApiGroups = new[] { "" },
-                    Resources = new[] { "services", "endpoints", "secrets" },
-                    Verbs = new[] { "get", "list", "watch" }
+                    ApiGroups = [""],
+                    Resources = ["services", "endpoints", "secrets"],
+                    Verbs = ["get", "list", "watch"]
                 },
                 // Allow access to ingress resources
                 new()
                 {
-                    ApiGroups = new[] { "networking.k8s.io" },
-                    Resources = new[] { "ingresses" },
-                    Verbs = new[] { "get", "list", "watch" }
+                    ApiGroups = ["networking.k8s.io"],
+                    Resources = ["ingresses"],
+                    Verbs = ["get", "list", "watch"]
                 },
                 // Allow access to ingressclasses
                 new()
                 {
-                    ApiGroups = new[] { "networking.k8s.io" },
-                    Resources = new[] { "ingressclasses" },
-                    Verbs = new[] { "get", "list", "watch" }
+                    ApiGroups = ["networking.k8s.io"],
+                    Resources = ["ingressclasses"],
+                    Verbs = ["get", "list", "watch"]
                 },
                 // Allow access to endpointslices
                 new()
                 {
-                    ApiGroups = new[] { "discovery.k8s.io" },
-                    Resources = new[] { "endpointslices" },
-                    Verbs = new[] { "get", "list", "watch" }
+                    ApiGroups = ["discovery.k8s.io"],
+                    Resources = ["endpointslices"],
+                    Verbs = ["get", "list", "watch"]
                 },
                 // Allow access to nodes
                 new()
                 {
-                    ApiGroups = new[] { "" },
-                    Resources = new[] { "nodes" },
-                    Verbs = new[] { "get", "list", "watch" }
+                    ApiGroups = [""],
+                    Resources = ["nodes"],
+                    Verbs = ["get", "list", "watch"]
                 }
-            }
+            ]
         };
 
-    public static V1ClusterRoleBinding CreateClusterRoleBinding()
+    private V1ClusterRoleBinding ClusterRoleBinding
         => new()
         {
             ApiVersion = "rbac.authorization.k8s.io/v1",
@@ -92,7 +92,7 @@ public static class Traefik
             ]
         };
 
-    public static V1Deployment CreateDeployment()
+    private V1Deployment Deployment
         => new()
         {
             ApiVersion = "apps/v1",
@@ -162,7 +162,7 @@ public static class Traefik
             }
         };
 
-    public static V1IngressClass CreateIngressClass()
+    private V1IngressClass IngressClass
         => new()
         {
             ApiVersion = "networking.k8s.io/v1",
@@ -177,7 +177,7 @@ public static class Traefik
             }
         };
 
-    public static V1Service CreateTraefikService()
+    private V1Service Service
     => new()
     {
         ApiVersion = "v1",
@@ -197,8 +197,8 @@ public static class Traefik
             {
                 ["app"] = "traefik"
             },
-            Ports = new List<V1ServicePort>
-            {
+            Ports =
+            [
                 new()
                 {
                     Name = "web",
@@ -214,18 +214,18 @@ public static class Traefik
                     Port = 8080,
                     TargetPort = 8080
                 }
-            },
+            ],
             Type = "NodePort" // Use LoadBalancer if running on cloud
         }
     };
 
-    public static async Task Deploy(k8s.Kubernetes k8sClient)
+    public async Task Deploy()
     {
-        await k8sClient.CreateNamespacedServiceAccountAsync(CreateServiceAccount(), "kube-system");
-        await k8sClient.CreateClusterRoleAsync(CreateClusterRole());
-        await k8sClient.CreateClusterRoleBindingAsync(CreateClusterRoleBinding());
-        await k8sClient.CreateNamespacedDeploymentAsync(CreateDeployment(), "kube-system");
-        await k8sClient.CreateNamespacedServiceAsync(CreateTraefikService(), "kube-system");
-        await k8sClient.CreateIngressClassAsync(CreateIngressClass());
+        await k8sClient.CreateNamespacedServiceAccountAsync(ServiceAccount, "kube-system");
+        await k8sClient.CreateClusterRoleAsync(ClusterRole);
+        await k8sClient.CreateClusterRoleBindingAsync(ClusterRoleBinding);
+        await k8sClient.CreateNamespacedDeploymentAsync(Deployment, "kube-system");
+        await k8sClient.CreateNamespacedServiceAsync(Service, "kube-system");
+        await k8sClient.CreateIngressClassAsync(IngressClass);
     }
 }

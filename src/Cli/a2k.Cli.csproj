@@ -9,14 +9,9 @@
     <ToolCommandName>a2k</ToolCommandName>
     <PackageOutputPath>../../nupkg</PackageOutputPath>
     <PackageId>a2k</PackageId>
-    <Version>0.0.1</Version>
-    <PackageVersion>0.0.1</PackageVersion>
+    <Version>0.0.2</Version>
+    <PackageVersion>0.0.2</PackageVersion>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
-    <PackageReference Include="System.CommandLine.NamingConventionBinder" Version="2.0.0-beta4.22272.1" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Shared\a2k.Shared.csproj" />

@@ -1,5 +1,7 @@
-﻿using a2k.Shared.Models.Kubernetes;
+﻿using a2k.Shared.Models.Aspire;
+using a2k.Shared.Models.Kubernetes;
 using k8s.Models;
+using System.Text;
 using System.Text.Json;
 
 namespace a2k.Shared;
@@ -102,4 +104,31 @@ public static class Defaults
         {
             MatchLabels = labels,
         };
+
+    public static V1Secret ImagePullSecret(Solution solution)
+    {
+        return new V1Secret
+        {
+            Metadata = new V1ObjectMeta
+            {
+                Name = "a2k-registry-creds",
+                NamespaceProperty = solution.Name
+            },
+            Type = "kubernetes.io/dockerconfigjson",
+            Data = new Dictionary<string, byte[]>
+            {
+                [".dockerconfigjson"] = Encoding.UTF8.GetBytes($$"""
+                    {
+                        "auths": {
+                            "{{solution.RegistryUrl}}": {
+                                "username": "{{solution.RegistryUser}}",
+                                "password": "{{solution.RegistryPassword}}",
+                                "auth": "{{Convert.ToBase64String(Encoding.UTF8.GetBytes($"{solution.RegistryUser}:{solution.RegistryPassword}"))}}"
+                            }
+                        }
+                    }
+                    """)
+            }
+        };
+    }
 }

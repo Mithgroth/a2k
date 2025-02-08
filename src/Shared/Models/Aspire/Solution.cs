@@ -1,4 +1,5 @@
-﻿using k8s;
+﻿using a2k.Shared.Settings;
+using k8s;
 using k8s.Autorest;
 using Spectre.Console;
 using System.Net;
@@ -62,24 +63,24 @@ public sealed record Solution
 
     public string RegistryNamespace => Name.ToLower().Replace(" ", "-");
 
-    public Solution(string appHostPath, string? name, string env, bool useVersioning, string? context, string? registryUrl, string? registryUser, string? registryPassword)
+    public Solution (DeploySettings settings)
     {
-        RegistryUrl = registryUrl;
-        RegistryUser = registryUser;
-        RegistryPassword = registryPassword;
-        // Get actual context name
-        var config = string.IsNullOrEmpty(context) 
+        RegistryUrl = settings.RegistryUrl;
+        RegistryUser = settings.RegistryUser;
+        RegistryPassword = settings.RegistryPassword;
+
+        var config = string.IsNullOrEmpty(settings.Context)
             ? KubernetesClientConfiguration.BuildConfigFromConfigFile()
-            : KubernetesClientConfiguration.BuildConfigFromConfigFile(currentContext: context);
-            
+            : KubernetesClientConfiguration.BuildConfigFromConfigFile(currentContext: settings.Context);
+
         Context = config.CurrentContext;
-        
-        AppHostPath = appHostPath ?? throw new ArgumentNullException(nameof(appHostPath));
-        Env = string.IsNullOrEmpty(env) ? "default" : env;
-        ManifestPath = Path.Combine(appHostPath, "manifest.json");
-        Name = string.IsNullOrEmpty(name) ? Utility.FindAndFormatSolutionName(appHostPath) : name;
-        Tag = useVersioning ? Utility.GenerateVersion() : "latest";
-        UseVersioning = useVersioning;
+
+        AppHostPath = settings.AppHostPath ?? throw new ArgumentNullException(nameof(settings.AppHostPath));
+        Env = string.IsNullOrEmpty(settings.Env) ? "default" : settings.Env;
+        ManifestPath = Path.Combine(settings.AppHostPath, "manifest.json");
+        Name = string.IsNullOrEmpty(settings.Name) ? Utility.FindAndFormatSolutionName(settings.AppHostPath) : settings.Name;
+        Tag = settings.UseVersioning ? Utility.GenerateVersion() : "latest";
+        UseVersioning = settings.UseVersioning;
 
         if (!IsLocal && (string.IsNullOrEmpty(RegistryUser) || string.IsNullOrEmpty(RegistryPassword)))
         {

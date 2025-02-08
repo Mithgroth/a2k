@@ -10,6 +10,7 @@
     <PackageReference Include="Aspire.Hosting" Version="9.0.0" />
     <PackageReference Include="KubernetesClient" Version="15.0.1" />
     <PackageReference Include="Spectre.Console" Version="0.49.1" />
+    <PackageReference Include="Spectre.Console.Cli" Version="0.49.1" />
   </ItemGroup>
 
 </Project>
