@@ -1,6 +1,8 @@
 using k8s;
 using k8s.Models;
 
+namespace a2k.Models;
+
 public class Deployment : Resource, IKubernetesResource
 {
     private readonly V1Deployment _deployment;
@@ -15,7 +17,12 @@ public class Deployment : Resource, IKubernetesResource
         {
             Metadata = new V1ObjectMeta
             {
-                Name = name
+                Name = name,
+                Labels = new Dictionary<string, string>()
+            {
+                { "app", name},
+                { "app.kubernetes.io/managed-by", "a2k"}
+            }
             },
             Spec = new V1DeploymentSpec
             {
@@ -46,10 +53,10 @@ public class Deployment : Resource, IKubernetesResource
         _configureDeployment = configure;
     }
 
-    public override async Task ApplyAsync(k8s.Kubernetes client, CancellationToken cancellationToken = default)
+    public override async Task ApplyAsync(Kubernetes client, CancellationToken cancellationToken = default)
     {
         _configureDeployment?.Invoke(_deployment);
-        
+
         try
         {
             await client.AppsV1.CreateNamespacedDeploymentAsync(
@@ -66,4 +73,4 @@ public class Deployment : Resource, IKubernetesResource
                 cancellationToken: cancellationToken);
         }
     }
-} 
+}

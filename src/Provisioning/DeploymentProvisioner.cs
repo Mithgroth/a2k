@@ -1,4 +1,7 @@
+using a2k.Models;
 using Aspire.Hosting.ApplicationModel;
+
+namespace a2k.Provisioning;
 
 internal sealed class DeploymentProvisioner(
     ResourceLoggerService loggerService,

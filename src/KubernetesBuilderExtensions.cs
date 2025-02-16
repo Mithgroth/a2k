@@ -1,6 +1,11 @@
+using a2k.Annotations;
+using a2k.Models;
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using k8s.Models;
+using Resource = a2k.Models.Resource;
+
+namespace a2k;
 
 public static class KubernetesBuilderExtensions
 {
@@ -18,13 +23,13 @@ public static class KubernetesBuilderExtensions
     {
         var deployment = new Deployment(name);
         var resourceBuilder = builder.AddResource(deployment);
-        
+
         if (configureDeployment is not null)
         {
             deployment.Configure(configureDeployment);
         }
 
-        return resourceBuilder.WithKubernetesMetadata(metadata => {});
+        return resourceBuilder.WithKubernetesMetadata(metadata => { });
     }
 
     public static IResourceBuilder<HelmChart> AddHelmChart(
@@ -36,4 +41,4 @@ public static class KubernetesBuilderExtensions
         // Implementation of AddHelmChart method
         throw new NotImplementedException();
     }
-} 
+}

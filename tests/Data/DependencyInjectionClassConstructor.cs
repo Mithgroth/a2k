@@ -1,6 +1,6 @@
 ﻿//using TUnit.Core.Interfaces;
 
-//namespace a2k.Tests.Data;
+//namespace a2kTests.Data;
 
 //public class DependencyInjectionClassConstructor : IClassConstructor
 //{

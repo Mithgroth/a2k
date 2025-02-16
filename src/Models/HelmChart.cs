@@ -1,6 +1,8 @@
 using k8s;
 using k8s.Models;
 
+namespace a2k.Models;
+
 public class HelmChart : Resource, IKubernetesResource
 {
     public string ChartName { get; }
@@ -10,15 +12,15 @@ public class HelmChart : Resource, IKubernetesResource
     public TaskCompletionSource? ProvisioningTaskCompletionSource { get; set; }
     public override V1ObjectMeta Metadata => new() { Name = Name };
 
-    public HelmChart(string name, string chartName, string version) 
+    public HelmChart(string name, string chartName, string version)
         : base(name)
     {
         ChartName = chartName;
         Version = version;
     }
-    
-    public override async Task ApplyAsync(k8s.Kubernetes client, CancellationToken cancellationToken = default)
+
+    public override async Task ApplyAsync(Kubernetes client, CancellationToken cancellationToken = default)
     {
         // Implementation will be handled in HelmProvisioner
     }
-} 
+}

@@ -1,3 +1,5 @@
+namespace a2k.Provisioning;
+
 internal interface IResourceProvisioner
 {
     Task ProvisionAsync(IKubernetesResource resource, CancellationToken cancellationToken = default);

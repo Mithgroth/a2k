@@ -1,5 +1,7 @@
 using Aspire.Hosting.ApplicationModel;
 
+namespace a2k;
+
 internal static class ResourceExtensions
 {
     public static T? TrySelectParentResource<T>(this IResource resource) where T : IResource

@@ -1,8 +1,11 @@
+using a2k.Provisioning;
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Aspire.Hosting.Lifecycle;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
+namespace a2k;
 
 internal sealed class KubernetesLifecycleHook(
     DistributedApplicationExecutionContext executionContext,

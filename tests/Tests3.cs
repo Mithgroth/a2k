@@ -1,4 +1,4 @@
-﻿//using a2k.Tests.Data;
+﻿//using a2kTests.Data;
 
 //[ClassDataSource<DataClass>]
 //[ClassConstructor<DependencyInjectionClassConstructor>]

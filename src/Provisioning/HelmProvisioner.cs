@@ -1,4 +1,7 @@
+using a2k.Models;
 using Aspire.Hosting.ApplicationModel;
+
+namespace a2k.Provisioning;
 
 internal sealed class HelmProvisioner(
     ResourceLoggerService loggerService,
@@ -16,4 +19,4 @@ internal sealed class HelmProvisioner(
         // Implementation using Helm dotnet SDK or shelling out to helm CLI
         // Placeholder for actual Helm installation logic
     }
-} 
+}
