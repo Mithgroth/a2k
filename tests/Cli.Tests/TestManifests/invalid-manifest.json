@@ -1,7 +1,0 @@
-{
-  "resources": {
-    "api": {
-      "type": "project.v0"
-      // Missing required path field
-    }
-  }
