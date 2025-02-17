@@ -9,4 +9,5 @@ public interface IKubernetesResource : IResource
     TaskCompletionSource? ProvisioningTaskCompletionSource { get; set; }
     KubernetesClientConfiguration? KubernetesConfig { get; set; }
     V1ObjectMeta Metadata { get; }
+    Task ApplyAsync(Kubernetes client, CancellationToken cancellationToken = default);
 }

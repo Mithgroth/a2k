@@ -3,9 +3,8 @@ using Aspire.Hosting.ApplicationModel;
 
 namespace a2k.Provisioning;
 
-internal sealed class DeploymentProvisioner(
-    ResourceLoggerService loggerService,
-    ResourceNotificationService notificationService)
+internal sealed class DeploymentProvisioner(ResourceLoggerService loggerService,
+                                            ResourceNotificationService notificationService) 
     : KubernetesResourceProvisioner<Deployment>(loggerService, notificationService)
 {
     protected override async Task ApplyResourceAsync(Deployment resource, CancellationToken cancellationToken)

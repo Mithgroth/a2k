@@ -7,11 +7,11 @@ using Microsoft.Extensions.Logging;
 
 namespace a2k;
 
-internal sealed class KubernetesLifecycleHook(
-    DistributedApplicationExecutionContext executionContext,
-    IServiceProvider serviceProvider,
-    ResourceNotificationService notificationService,
-    ResourceLoggerService loggerService) : IDistributedApplicationLifecycleHook
+internal sealed class KubernetesLifecycleHook(DistributedApplicationExecutionContext executionContext,
+                                              IServiceProvider serviceProvider,
+                                              ResourceNotificationService notificationService,
+                                              ResourceLoggerService loggerService) 
+    : IDistributedApplicationLifecycleHook
 {
     public Task BeforeStartAsync(DistributedApplicationModel appModel, CancellationToken cancellationToken = default)
     {
@@ -72,9 +72,9 @@ internal sealed class KubernetesLifecycleHook(
         }
     }
 
-    private async Task UpdateStateAsync(IKubernetesResource resource, 
-        ILookup<IKubernetesResource?, IResourceWithParent> parentChildLookup,
-        Func<CustomResourceSnapshot, CustomResourceSnapshot> stateFactory)
+    private async Task UpdateStateAsync(IKubernetesResource resource,
+                                        ILookup<IKubernetesResource?, IResourceWithParent> parentChildLookup,
+                                        Func<CustomResourceSnapshot, CustomResourceSnapshot> stateFactory)
     {
         await notificationService.PublishUpdateAsync(resource, stateFactory);
         foreach (var child in parentChildLookup[resource])
