@@ -4,7 +4,7 @@ using k8s.Models;
 
 namespace a2k;
 
-public interface IKubernetesResource : IResource
+public interface IKubernetesResource : IResourceWithEnvironment
 {
     TaskCompletionSource? ProvisioningTaskCompletionSource { get; set; }
     KubernetesClientConfiguration? KubernetesConfig { get; set; }

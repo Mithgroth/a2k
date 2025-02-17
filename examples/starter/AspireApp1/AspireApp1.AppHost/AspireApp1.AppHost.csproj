@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\a2k.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="..\AspireApp1.ApiService\AspireApp1.ApiService.csproj" />
     <ProjectReference Include="..\AspireApp1.Web\AspireApp1.Web.csproj" />
   </ItemGroup>
