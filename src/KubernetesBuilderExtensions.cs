@@ -3,17 +3,20 @@ using a2k.Models;
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using k8s.Models;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace a2k;
 
 public static class KubernetesBuilderExtensions
 {
-    public static IDistributedApplicationBuilder UseKubernetes(
-        this IDistributedApplicationBuilder builder,
-        Action<KubernetesOptions>? configureOptions = null)
+    public static IDistributedApplicationBuilder UseKubernetes(this IDistributedApplicationBuilder builder,
+                                                               Action<KubernetesOptions>? configureOptions = null)
     {
         var options = new KubernetesOptions();
         configureOptions?.Invoke(options);
+
+        var context = new KubernetesContext(options);
+        builder.Services.AddSingleton(context);
 
         foreach (var resource in builder.Resources.OfType<IResourceWithEnvironment>())
         {
@@ -23,9 +26,8 @@ public static class KubernetesBuilderExtensions
         return builder;
     }
 
-    public static IDistributedApplicationBuilder WithKubernetesResources(
-        this IDistributedApplicationBuilder builder,
-        Action<IResourceBuilder<IResource>> configureResource)
+    public static IDistributedApplicationBuilder WithKubernetesResources(this IDistributedApplicationBuilder builder,
+                                                                         Action<IResourceBuilder<IResource>> configureResource)
     {
         foreach (var resource in builder.Resources)
         {
@@ -36,7 +38,9 @@ public static class KubernetesBuilderExtensions
         return builder;
     }
 
-    public static IResourceBuilder<T> WithKubernetesMetadata<T>(this IResourceBuilder<T> builder, Action<V1ObjectMeta> configureMetadata) where T : IKubernetesResource
+    public static IResourceBuilder<T> WithKubernetesMetadata<T>(this IResourceBuilder<T> builder,
+                                                                Action<V1ObjectMeta> configureMetadata) 
+        where T : IKubernetesResource
     {
         builder.Resource.Annotations.Add(new KubernetesAnnotation("app.kubernetes.io/managed-by", "a2k"));
         configureMetadata?.Invoke(builder.Resource.Metadata);
@@ -52,9 +56,8 @@ public static class KubernetesBuilderExtensions
         throw new NotImplementedException();
     }
 
-    public static async Task<IResourceBuilder<ProjectResource>> ToKubernetes<ProjectResource>(
-            this IResourceBuilder<ProjectResource> builder,
-            Action<V1Deployment>? configureDeployment = null) 
+    public static async Task<IResourceBuilder<ProjectResource>> ToKubernetes<ProjectResource>(this IResourceBuilder<ProjectResource> builder,
+                                                                                              Action<V1Deployment>? configureDeployment = null) 
         where ProjectResource : IResourceWithEnvironment
     {
         var deployment = new Deployment(builder.Resource.Name);
