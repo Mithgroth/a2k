@@ -8,15 +8,15 @@ namespace a2k.Tests;
 
 public class GlobalHooks
 {
-    [Before(TestSession)]
-    public static void SetUp()
-    {
-        Console.WriteLine("Or you can define methods that do stuff before...");
-    }
+    //[Before(TestSession)]
+    //public static void SetUp()
+    //{
+    //    Console.WriteLine("Or you can define methods that do stuff before...");
+    //}
 
-    [After(TestSession)]
-    public static void CleanUp()
-    {
-        Console.WriteLine("...and after!");
-    }
+    //[After(TestSession)]
+    //public static void CleanUp()
+    //{
+    //    Console.WriteLine("...and after!");
+    //}
 }
