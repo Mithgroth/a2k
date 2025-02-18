@@ -10,22 +10,23 @@ public class Deployment : V1Deployment, IKubernetesResource
 {
     private Action<V1Deployment>? _configureDeployment;
     public KubernetesClientConfiguration? KubernetesConfig { get; set; }
-    public TaskCompletionSource? ProvisioningTaskCompletionSource { get; set; }
+    public TaskCompletionSource? DeploymentTaskCompletionSource { get; set; }
 
     public string Name => Metadata.Name;
 
-    public ResourceAnnotationCollection Annotations => Annotations;
+    public ResourceAnnotationCollection Annotations => [];
 
-    public Deployment(string name)
+    public Deployment(string name, string @namespace)
     {
         Metadata = new V1ObjectMeta
         {
             Name = name,
+            NamespaceProperty = @namespace,
             Labels = new Dictionary<string, string>()
-                {
-                    { "app", name},
-                    { "app.kubernetes.io/managed-by", "a2k"}
-                }
+            {
+                { "app", name},
+                { "app.kubernetes.io/managed-by", "a2k"}
+            }
         };
         ApiVersion = $"{KubeGroup}/{KubeApiVersion}";
         Kind = KubeKind;
@@ -47,7 +48,19 @@ public class Deployment : V1Deployment, IKubernetesResource
                         ["app"] = name
                     }
                 },
-                Spec = new V1PodSpec()
+                Spec = new V1PodSpec
+                {
+                    Containers =
+                    [
+                        new V1Container
+                        {
+                            Name = name,
+                            Image = "${REGISTRY}/" + name.ToLowerInvariant() + ":latest",
+                            Env = new List<V1EnvVar>(),
+                            ImagePullPolicy = "IfNotPresent"
+                        }
+                    ]
+                }
             }
         };
     }
@@ -57,7 +70,7 @@ public class Deployment : V1Deployment, IKubernetesResource
         _configureDeployment = configure;
     }
 
-    public async Task ApplyAsync(Kubernetes client, CancellationToken cancellationToken = default)
+    public async Task DeployAsync(Kubernetes client, CancellationToken cancellationToken = default)
     {
         _configureDeployment?.Invoke(this);
 

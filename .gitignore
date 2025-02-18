@@ -401,3 +401,4 @@ FodyWeavers.xsd
 manifest.json
 /src/Cli/Properties/launchSettings.json
 /.old
+/aspire

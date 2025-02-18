@@ -6,8 +6,8 @@ namespace a2k;
 
 public interface IKubernetesResource : IResourceWithEnvironment
 {
-    TaskCompletionSource? ProvisioningTaskCompletionSource { get; set; }
+    TaskCompletionSource? DeploymentTaskCompletionSource { get; set; }
     KubernetesClientConfiguration? KubernetesConfig { get; set; }
     V1ObjectMeta Metadata { get; }
-    Task ApplyAsync(Kubernetes client, CancellationToken cancellationToken = default);
+    Task DeployAsync(Kubernetes client, CancellationToken cancellationToken = default);
 }
